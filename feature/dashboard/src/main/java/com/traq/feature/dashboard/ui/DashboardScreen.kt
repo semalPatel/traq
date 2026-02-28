@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Navigation
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Card
@@ -88,9 +89,12 @@ fun DashboardScreen(
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
+            val hasActiveTrip = state.activeTripState != null
             FloatingActionButton(
                 onClick = {
-                    if (viewModel.hasLocationPermission()) {
+                    if (hasActiveTrip) {
+                        state.activeTripState?.tripId?.let { onStartTrip(it) }
+                    } else if (viewModel.hasLocationPermission()) {
                         val tripId = viewModel.startNewTrip()
                         onStartTrip(tripId)
                     } else {
@@ -104,7 +108,10 @@ fun DashboardScreen(
                 },
                 containerColor = MaterialTheme.colorScheme.primary
             ) {
-                Icon(Icons.Default.Add, contentDescription = "Start Trip")
+                Icon(
+                    if (hasActiveTrip) Icons.Default.Navigation else Icons.Default.Add,
+                    contentDescription = if (hasActiveTrip) "View Trip" else "Start Trip"
+                )
             }
         }
     ) { padding ->

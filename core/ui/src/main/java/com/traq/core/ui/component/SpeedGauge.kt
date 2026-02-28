@@ -1,7 +1,7 @@
 package com.traq.core.ui.component
 
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,7 +28,7 @@ fun SpeedGauge(
 ) {
     val animatedSpeed by animateFloatAsState(
         targetValue = speedMps,
-        animationSpec = spring(dampingRatio = 0.7f),
+        animationSpec = tween(durationMillis = 300),
         label = "speed"
     )
     val fraction = (animatedSpeed / maxSpeedMps).coerceIn(0f, 1f)

@@ -32,6 +32,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.util.UUID
@@ -164,9 +165,11 @@ class TrackingService : Service() {
         timerJob?.cancel()
         wakeLockManager.release()
 
-        serviceScope.launch {
-            currentTripId?.let { id ->
-                val elapsed = System.currentTimeMillis() - startTimeMs - totalPausedMs
+        val tripId = currentTripId
+        val elapsed = System.currentTimeMillis() - startTimeMs - totalPausedMs
+
+        serviceScope.launch(NonCancellable) {
+            tripId?.let { id ->
                 tripRepository.completeTrip(
                     id, Instant.now(),
                     TripMetrics(
@@ -182,12 +185,11 @@ class TrackingService : Service() {
                     )
                 )
             }
+            _trackingState.value = TrackingState.IDLE
+            currentTripId = null
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopSelf()
         }
-
-        _trackingState.value = TrackingState.IDLE
-        currentTripId = null
-        stopForeground(STOP_FOREGROUND_REMOVE)
-        stopSelf()
     }
 
     private suspend fun processLocation(location: Location) {

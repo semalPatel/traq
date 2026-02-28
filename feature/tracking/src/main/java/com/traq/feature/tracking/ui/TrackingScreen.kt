@@ -20,8 +20,12 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberBottomSheetScaffoldState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -47,10 +51,16 @@ fun TrackingScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     val scaffoldState = rememberBottomSheetScaffoldState()
+    var hasSeenTracking by remember { mutableStateOf(false) }
 
-    if (!state.trackingState.isTracking && state.trackingState.tripId == null) {
-        onBack()
-        return
+    if (state.trackingState.isTracking) {
+        hasSeenTracking = true
+    }
+
+    LaunchedEffect(state.trackingState.isTracking, hasSeenTracking) {
+        if (hasSeenTracking && !state.trackingState.isTracking) {
+            onTripCompleted(state.tripId)
+        }
     }
 
     BottomSheetScaffold(
@@ -68,7 +78,15 @@ fun TrackingScreen(
                     MetricCard(label = "Time", value = FormatUtils.formatDuration(state.trackingState.elapsedMs), modifier = Modifier.weight(1f))
                     MetricCard(label = "Points", value = state.trackingState.pointsRecorded.toString(), modifier = Modifier.weight(1f))
                 }
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(8.dp))
+                val modeText = state.trackingState.currentMode?.name?.lowercase()?.replaceFirstChar { it.uppercase() } ?: "Detecting..."
+                val intervalText = "%.1fs".format(state.trackingState.samplingIntervalMs / 1000.0)
+                Text(
+                    "$modeText · GPS interval: $intervalText",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(12.dp))
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     if (state.trackingState.isPaused) {
                         Button(onClick = { viewModel.onResume() }, modifier = Modifier.weight(1f)) {
@@ -107,7 +125,6 @@ fun TrackingScreen(
             confirmButton = {
                 TextButton(onClick = {
                     viewModel.onConfirmStop()
-                    onTripCompleted(state.tripId)
                 }) { Text("Stop") }
             },
             dismissButton = {
