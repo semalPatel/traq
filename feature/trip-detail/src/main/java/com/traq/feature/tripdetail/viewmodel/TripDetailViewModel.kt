@@ -1,0 +1,75 @@
+package com.traq.feature.tripdetail.viewmodel
+
+import androidx.lifecycle.SavedStateHandle
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.traq.core.common.model.ExportFormat
+import com.traq.core.data.repository.TrackPointRepository
+import com.traq.core.data.repository.TripRepository
+import com.traq.core.export.api.ExportManager
+import com.traq.core.maps.api.LatLng
+import com.traq.core.maps.api.LatLngBounds
+import com.traq.core.maps.api.RoutePolyline
+import com.traq.core.ui.util.ColorUtils
+import com.traq.feature.tripdetail.model.TripDetailUiState
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+@HiltViewModel
+class TripDetailViewModel @Inject constructor(
+    savedStateHandle: SavedStateHandle,
+    private val tripRepository: TripRepository,
+    private val trackPointRepository: TrackPointRepository,
+    private val exportManager: ExportManager
+) : ViewModel() {
+
+    private val tripId: String = savedStateHandle["tripId"] ?: ""
+
+    private val _uiState = MutableStateFlow(TripDetailUiState())
+    val uiState: StateFlow<TripDetailUiState> = _uiState.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            combine(
+                tripRepository.getTripFlow(tripId),
+                trackPointRepository.getTrackPointsFlow(tripId)
+            ) { trip, points ->
+                val latLngs = points.map { LatLng(it.latitude, it.longitude) }
+                val polyline = if (latLngs.size >= 2) {
+                    val color = trip?.dominantMode?.let { ColorUtils.transportModeColor(it).hashCode() }
+                        ?: 0xFF00BFA5.toInt()
+                    listOf(RoutePolyline(points = latLngs, colorInt = color, widthDp = 5f))
+                } else emptyList()
+
+                val bounds = if (latLngs.isNotEmpty()) {
+                    LatLngBounds(
+                        southWest = LatLng(latLngs.minOf { it.latitude }, latLngs.minOf { it.longitude }),
+                        northEast = LatLng(latLngs.maxOf { it.latitude }, latLngs.maxOf { it.longitude })
+                    )
+                } else null
+
+                TripDetailUiState(
+                    trip = trip,
+                    trackPoints = points,
+                    routePolylines = polyline,
+                    mapBounds = bounds,
+                    isLoading = false
+                )
+            }.collect { _uiState.value = it }
+        }
+    }
+
+    fun toggleExportSheet() { _uiState.update { it.copy(showExportSheet = !it.showExportSheet) } }
+
+    fun exportTrip(format: ExportFormat) {
+        viewModelScope.launch {
+            exportManager.exportTripToShare(tripId, format)
+        }
+    }
+}

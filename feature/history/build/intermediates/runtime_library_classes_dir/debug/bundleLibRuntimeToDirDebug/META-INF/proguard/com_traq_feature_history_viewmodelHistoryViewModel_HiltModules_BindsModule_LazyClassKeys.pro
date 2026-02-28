@@ -1,0 +1,1 @@
+-keep,allowobfuscation,allowshrinking class com.traq.feature.history.viewmodel.HistoryViewModel
