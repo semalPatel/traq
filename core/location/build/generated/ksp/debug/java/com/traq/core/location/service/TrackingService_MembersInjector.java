@@ -1,10 +1,15 @@
 package com.traq.core.location.service;
 
+import com.traq.core.ai.classification.TransportClassifier;
+import com.traq.core.ai.filter.GpsProcessor;
+import com.traq.core.ai.lifecycle.TripLifecycleManager;
+import com.traq.core.ai.sampling.AdaptiveSampler;
 import com.traq.core.data.repository.TrackPointRepository;
 import com.traq.core.data.repository.TripRepository;
 import com.traq.core.location.provider.LocationProvider;
 import com.traq.core.location.util.BatteryMonitor;
 import com.traq.core.location.util.WakeLockManager;
+import com.traq.core.sensors.collector.SensorCollector;
 import dagger.MembersInjector;
 import dagger.internal.DaggerGenerated;
 import dagger.internal.InjectedFieldSignature;
@@ -40,18 +45,38 @@ public final class TrackingService_MembersInjector implements MembersInjector<Tr
 
   private final Provider<BatteryMonitor> batteryMonitorProvider;
 
+  private final Provider<SensorCollector> sensorCollectorProvider;
+
+  private final Provider<GpsProcessor> gpsProcessorProvider;
+
+  private final Provider<AdaptiveSampler> adaptiveSamplerProvider;
+
+  private final Provider<TransportClassifier> transportClassifierProvider;
+
+  private final Provider<TripLifecycleManager> tripLifecycleManagerProvider;
+
   public TrackingService_MembersInjector(Provider<LocationProvider> locationProvider,
       Provider<TrackPointRepository> trackPointRepositoryProvider,
       Provider<TripRepository> tripRepositoryProvider,
       Provider<TrackingNotificationManager> notificationManagerProvider,
       Provider<WakeLockManager> wakeLockManagerProvider,
-      Provider<BatteryMonitor> batteryMonitorProvider) {
+      Provider<BatteryMonitor> batteryMonitorProvider,
+      Provider<SensorCollector> sensorCollectorProvider,
+      Provider<GpsProcessor> gpsProcessorProvider,
+      Provider<AdaptiveSampler> adaptiveSamplerProvider,
+      Provider<TransportClassifier> transportClassifierProvider,
+      Provider<TripLifecycleManager> tripLifecycleManagerProvider) {
     this.locationProvider = locationProvider;
     this.trackPointRepositoryProvider = trackPointRepositoryProvider;
     this.tripRepositoryProvider = tripRepositoryProvider;
     this.notificationManagerProvider = notificationManagerProvider;
     this.wakeLockManagerProvider = wakeLockManagerProvider;
     this.batteryMonitorProvider = batteryMonitorProvider;
+    this.sensorCollectorProvider = sensorCollectorProvider;
+    this.gpsProcessorProvider = gpsProcessorProvider;
+    this.adaptiveSamplerProvider = adaptiveSamplerProvider;
+    this.transportClassifierProvider = transportClassifierProvider;
+    this.tripLifecycleManagerProvider = tripLifecycleManagerProvider;
   }
 
   public static MembersInjector<TrackingService> create(Provider<LocationProvider> locationProvider,
@@ -59,8 +84,13 @@ public final class TrackingService_MembersInjector implements MembersInjector<Tr
       Provider<TripRepository> tripRepositoryProvider,
       Provider<TrackingNotificationManager> notificationManagerProvider,
       Provider<WakeLockManager> wakeLockManagerProvider,
-      Provider<BatteryMonitor> batteryMonitorProvider) {
-    return new TrackingService_MembersInjector(locationProvider, trackPointRepositoryProvider, tripRepositoryProvider, notificationManagerProvider, wakeLockManagerProvider, batteryMonitorProvider);
+      Provider<BatteryMonitor> batteryMonitorProvider,
+      Provider<SensorCollector> sensorCollectorProvider,
+      Provider<GpsProcessor> gpsProcessorProvider,
+      Provider<AdaptiveSampler> adaptiveSamplerProvider,
+      Provider<TransportClassifier> transportClassifierProvider,
+      Provider<TripLifecycleManager> tripLifecycleManagerProvider) {
+    return new TrackingService_MembersInjector(locationProvider, trackPointRepositoryProvider, tripRepositoryProvider, notificationManagerProvider, wakeLockManagerProvider, batteryMonitorProvider, sensorCollectorProvider, gpsProcessorProvider, adaptiveSamplerProvider, transportClassifierProvider, tripLifecycleManagerProvider);
   }
 
   @Override
@@ -71,6 +101,11 @@ public final class TrackingService_MembersInjector implements MembersInjector<Tr
     injectNotificationManager(instance, notificationManagerProvider.get());
     injectWakeLockManager(instance, wakeLockManagerProvider.get());
     injectBatteryMonitor(instance, batteryMonitorProvider.get());
+    injectSensorCollector(instance, sensorCollectorProvider.get());
+    injectGpsProcessor(instance, gpsProcessorProvider.get());
+    injectAdaptiveSampler(instance, adaptiveSamplerProvider.get());
+    injectTransportClassifier(instance, transportClassifierProvider.get());
+    injectTripLifecycleManager(instance, tripLifecycleManagerProvider.get());
   }
 
   @InjectedFieldSignature("com.traq.core.location.service.TrackingService.locationProvider")
@@ -105,5 +140,34 @@ public final class TrackingService_MembersInjector implements MembersInjector<Tr
   @InjectedFieldSignature("com.traq.core.location.service.TrackingService.batteryMonitor")
   public static void injectBatteryMonitor(TrackingService instance, BatteryMonitor batteryMonitor) {
     instance.batteryMonitor = batteryMonitor;
+  }
+
+  @InjectedFieldSignature("com.traq.core.location.service.TrackingService.sensorCollector")
+  public static void injectSensorCollector(TrackingService instance,
+      SensorCollector sensorCollector) {
+    instance.sensorCollector = sensorCollector;
+  }
+
+  @InjectedFieldSignature("com.traq.core.location.service.TrackingService.gpsProcessor")
+  public static void injectGpsProcessor(TrackingService instance, GpsProcessor gpsProcessor) {
+    instance.gpsProcessor = gpsProcessor;
+  }
+
+  @InjectedFieldSignature("com.traq.core.location.service.TrackingService.adaptiveSampler")
+  public static void injectAdaptiveSampler(TrackingService instance,
+      AdaptiveSampler adaptiveSampler) {
+    instance.adaptiveSampler = adaptiveSampler;
+  }
+
+  @InjectedFieldSignature("com.traq.core.location.service.TrackingService.transportClassifier")
+  public static void injectTransportClassifier(TrackingService instance,
+      TransportClassifier transportClassifier) {
+    instance.transportClassifier = transportClassifier;
+  }
+
+  @InjectedFieldSignature("com.traq.core.location.service.TrackingService.tripLifecycleManager")
+  public static void injectTripLifecycleManager(TrackingService instance,
+      TripLifecycleManager tripLifecycleManager) {
+    instance.tripLifecycleManager = tripLifecycleManager;
   }
 }

@@ -2,16 +2,18 @@ package com.traq.core.location.service
 
 import android.app.Service
 import android.content.Intent
-import android.content.ServiceConnection
 import android.content.pm.ServiceInfo
 import android.location.Location
 import android.os.Binder
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.ServiceCompat
-import com.traq.core.common.model.TransportMode
+import com.traq.core.ai.classification.TransportClassifier
+import com.traq.core.ai.filter.GpsProcessor
+import com.traq.core.ai.lifecycle.TripLifecycleManager
+import com.traq.core.ai.sampling.AdaptiveSampler
+import com.traq.core.ai.util.GeoMath.haversineDistance
 import com.traq.core.data.model.TrackPoint
-import com.traq.core.data.model.Trip
 import com.traq.core.data.model.TripMetrics
 import com.traq.core.data.repository.TrackPointRepository
 import com.traq.core.data.repository.TripRepository
@@ -19,6 +21,7 @@ import com.traq.core.location.model.TrackingState
 import com.traq.core.location.provider.LocationProvider
 import com.traq.core.location.util.BatteryMonitor
 import com.traq.core.location.util.WakeLockManager
+import com.traq.core.sensors.collector.SensorCollector
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -33,10 +36,6 @@ import kotlinx.coroutines.launch
 import java.time.Instant
 import java.util.UUID
 import javax.inject.Inject
-import kotlin.math.asin
-import kotlin.math.cos
-import kotlin.math.sin
-import kotlin.math.sqrt
 
 @AndroidEntryPoint
 class TrackingService : Service() {
@@ -47,6 +46,11 @@ class TrackingService : Service() {
     @Inject lateinit var notificationManager: TrackingNotificationManager
     @Inject lateinit var wakeLockManager: WakeLockManager
     @Inject lateinit var batteryMonitor: BatteryMonitor
+    @Inject lateinit var sensorCollector: SensorCollector
+    @Inject lateinit var gpsProcessor: GpsProcessor
+    @Inject lateinit var adaptiveSampler: AdaptiveSampler
+    @Inject lateinit var transportClassifier: TransportClassifier
+    @Inject lateinit var tripLifecycleManager: TripLifecycleManager
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var locationCollectionJob: Job? = null
@@ -59,8 +63,11 @@ class TrackingService : Service() {
     private var totalPausedMs: Long = 0L
     private var lastRecordedPoint: TrackPoint? = null
     private var totalDistanceMeters: Double = 0.0
+    private var totalAscentMeters: Double = 0.0
+    private var totalDescentMeters: Double = 0.0
     private var maxSpeedMps: Float = 0f
     private var pointCount: Int = 0
+    private var currentSamplingIntervalMs: Long = 3000L
 
     private val _trackingState = MutableStateFlow(TrackingState.IDLE)
     val trackingState: StateFlow<TrackingState> = _trackingState.asStateFlow()
@@ -89,8 +96,11 @@ class TrackingService : Service() {
         startTimeMs = System.currentTimeMillis()
         totalPausedMs = 0L
         totalDistanceMeters = 0.0
+        totalAscentMeters = 0.0
+        totalDescentMeters = 0.0
         maxSpeedMps = 0f
         pointCount = 0
+        currentSamplingIntervalMs = 3000L
         lastRecordedPoint = null
 
         notificationManager.createNotificationChannel()
@@ -107,6 +117,7 @@ class TrackingService : Service() {
 
         wakeLockManager.acquire()
         locationProvider.start()
+        sensorCollector.start()
 
         locationCollectionJob = serviceScope.launch {
             locationProvider.locations.collect { location ->
@@ -127,6 +138,7 @@ class TrackingService : Service() {
     private fun pauseTracking() {
         pauseStartMs = System.currentTimeMillis()
         locationProvider.stop()
+        sensorCollector.stop()
         locationCollectionJob?.cancel()
         updateState(isPaused = true)
     }
@@ -134,6 +146,7 @@ class TrackingService : Service() {
     private fun resumeTracking() {
         totalPausedMs += System.currentTimeMillis() - pauseStartMs
         locationProvider.start()
+        sensorCollector.start()
         locationCollectionJob = serviceScope.launch {
             locationProvider.locations.collect { location ->
                 processLocation(location)
@@ -144,6 +157,9 @@ class TrackingService : Service() {
 
     private fun stopTracking() {
         locationProvider.stop()
+        sensorCollector.stop()
+        gpsProcessor.reset()
+        tripLifecycleManager.reset()
         locationCollectionJob?.cancel()
         timerJob?.cancel()
         wakeLockManager.release()
@@ -157,10 +173,10 @@ class TrackingService : Service() {
                         totalDistanceMeters = totalDistanceMeters,
                         totalDurationMs = elapsed,
                         movingDurationMs = elapsed,
-                        avgSpeedMps = if (elapsed > 0) (totalDistanceMeters / (elapsed / 1000.0)).toDouble() else 0.0,
+                        avgSpeedMps = if (elapsed > 0) (totalDistanceMeters / (elapsed / 1000.0)) else 0.0,
                         maxSpeedMps = maxSpeedMps.toDouble(),
-                        totalAscentMeters = 0.0,
-                        totalDescentMeters = 0.0,
+                        totalAscentMeters = totalAscentMeters,
+                        totalDescentMeters = totalDescentMeters,
                         batteryUsedPercent = null,
                         pointCount = pointCount
                     )
@@ -176,7 +192,8 @@ class TrackingService : Service() {
 
     private suspend fun processLocation(location: Location) {
         val tripId = currentTripId ?: return
-        val point = TrackPoint(
+
+        val rawPoint = TrackPoint(
             tripId = tripId,
             timestamp = Instant.ofEpochMilli(location.time),
             latitude = location.latitude,
@@ -191,17 +208,40 @@ class TrackingService : Service() {
             segmentIndex = 0
         )
 
+        val smoothed = gpsProcessor.smooth(rawPoint)
+
+        if (gpsProcessor.isAnomaly(smoothed, lastRecordedPoint)) return
+
+        val sensorWindow = sensorCollector.getRecentReadings(10_000)
+        val mode = transportClassifier.classify(sensorWindow, smoothed.speed)
+        val withMode = smoothed.copy(transportMode = mode)
+
         lastRecordedPoint?.let { prev ->
             totalDistanceMeters += haversineDistance(
-                prev.latitude, prev.longitude, point.latitude, point.longitude
+                prev.latitude, prev.longitude, withMode.latitude, withMode.longitude
             )
+            if (prev.altitude != null && withMode.altitude != null) {
+                val elevDiff = withMode.altitude!! - prev.altitude!!
+                if (elevDiff > 0) totalAscentMeters += elevDiff
+                else totalDescentMeters += kotlin.math.abs(elevDiff)
+            }
         }
-        point.speed?.let { if (it > maxSpeedMps) maxSpeedMps = it }
+        withMode.speed?.let { if (it > maxSpeedMps) maxSpeedMps = it }
 
-        trackPointRepository.insert(point)
+        trackPointRepository.insert(withMode)
         pointCount++
-        lastRecordedPoint = point
-        _currentLocation.value = point
+        lastRecordedPoint = withMode
+        _currentLocation.value = withMode
+
+        val newInterval = adaptiveSampler.getRecommendedIntervalMs(
+            currentSpeed = withMode.speed,
+            bearingChangeRate = null,
+            accuracy = withMode.horizontalAccuracy,
+            batteryPercent = batteryMonitor.getBatteryPercent(),
+            isMoving = sensorCollector.isMoving.value
+        )
+        locationProvider.updateInterval(newInterval)
+        currentSamplingIntervalMs = newInterval
     }
 
     private fun updateState(isPaused: Boolean = _trackingState.value.isPaused) {
@@ -220,8 +260,8 @@ class TrackingService : Service() {
             currentSpeedMps = _currentLocation.value?.speed,
             pointsRecorded = pointCount,
             batteryPercent = batteryMonitor.getBatteryPercent(),
-            currentMode = null,
-            samplingIntervalMs = 3000
+            currentMode = _currentLocation.value?.transportMode,
+            samplingIntervalMs = currentSamplingIntervalMs
         )
         _trackingState.value = state
         notificationManager.updateNotification(state)
@@ -230,16 +270,6 @@ class TrackingService : Service() {
     override fun onDestroy() {
         serviceScope.cancel()
         super.onDestroy()
-    }
-
-    private fun haversineDistance(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
-        val r = 6371000.0
-        val dLat = Math.toRadians(lat2 - lat1)
-        val dLon = Math.toRadians(lon2 - lon1)
-        val a = sin(dLat / 2) * sin(dLat / 2) +
-                cos(Math.toRadians(lat1)) * cos(Math.toRadians(lat2)) *
-                sin(dLon / 2) * sin(dLon / 2)
-        return r * 2 * asin(sqrt(a))
     }
 
     companion object {

@@ -8,6 +8,16 @@ import androidx.datastore.preferences.core.Preferences;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.SavedStateHandle;
 import androidx.lifecycle.ViewModel;
+import com.traq.core.ai.classification.RuleBasedClassifier;
+import com.traq.core.ai.classification.TransportClassifier;
+import com.traq.core.ai.di.AiModule_ProvideAdaptiveSamplerFactory;
+import com.traq.core.ai.di.AiModule_ProvideGpsProcessorFactory;
+import com.traq.core.ai.di.AiModule_ProvideTransportClassifierFactory;
+import com.traq.core.ai.filter.GpsProcessor;
+import com.traq.core.ai.filter.GpsProcessorImpl;
+import com.traq.core.ai.lifecycle.TripLifecycleManager;
+import com.traq.core.ai.sampling.AdaptiveSampler;
+import com.traq.core.ai.sampling.RuleBasedSampler;
 import com.traq.core.common.model.ExportFormat;
 import com.traq.core.data.db.TraqDatabase;
 import com.traq.core.data.db.dao.TrackPointDao;
@@ -48,6 +58,9 @@ import com.traq.core.maps.di.MapModule_ProvideMapRendererFactory;
 import com.traq.core.maps.google.GoogleMapsRenderer;
 import com.traq.core.maps.maplibre.MapLibreRenderer;
 import com.traq.core.permissions.PermissionManager;
+import com.traq.core.sensors.collector.SensorCollector;
+import com.traq.core.sensors.collector.SensorCollectorImpl;
+import com.traq.core.sensors.di.SensorModule_ProvideSensorCollectorFactory;
 import com.traq.feature.dashboard.viewmodel.DashboardViewModel;
 import com.traq.feature.dashboard.viewmodel.DashboardViewModel_HiltModules;
 import com.traq.feature.dashboard.viewmodel.DashboardViewModel_HiltModules_BindsModule_Binds_LazyMapKey;
@@ -453,6 +466,7 @@ public final class DaggerTraqApplication_HiltComponents_SingletonC {
 
     private MainActivity injectMainActivity2(MainActivity instance) {
       MainActivity_MembersInjector.injectMapRenderer(instance, singletonCImpl.provideMapRendererProvider.get());
+      MainActivity_MembersInjector.injectPermissionManager(instance, singletonCImpl.permissionManagerProvider.get());
       return instance;
     }
   }
@@ -634,6 +648,10 @@ public final class DaggerTraqApplication_HiltComponents_SingletonC {
       return new WakeLockManager(ApplicationContextModule_ProvideContextFactory.provideContext(singletonCImpl.applicationContextModule));
     }
 
+    private TripLifecycleManager tripLifecycleManager() {
+      return new TripLifecycleManager(singletonCImpl.provideSensorCollectorProvider.get());
+    }
+
     @Override
     public void injectTrackingService(TrackingService arg0) {
       injectTrackingService2(arg0);
@@ -646,6 +664,11 @@ public final class DaggerTraqApplication_HiltComponents_SingletonC {
       TrackingService_MembersInjector.injectNotificationManager(instance, trackingNotificationManager());
       TrackingService_MembersInjector.injectWakeLockManager(instance, wakeLockManager());
       TrackingService_MembersInjector.injectBatteryMonitor(instance, singletonCImpl.batteryMonitor());
+      TrackingService_MembersInjector.injectSensorCollector(instance, singletonCImpl.provideSensorCollectorProvider.get());
+      TrackingService_MembersInjector.injectGpsProcessor(instance, singletonCImpl.provideGpsProcessorProvider.get());
+      TrackingService_MembersInjector.injectAdaptiveSampler(instance, singletonCImpl.provideAdaptiveSamplerProvider.get());
+      TrackingService_MembersInjector.injectTransportClassifier(instance, singletonCImpl.provideTransportClassifierProvider.get());
+      TrackingService_MembersInjector.injectTripLifecycleManager(instance, tripLifecycleManager());
       return instance;
     }
   }
@@ -661,6 +684,8 @@ public final class DaggerTraqApplication_HiltComponents_SingletonC {
 
     private Provider<MapRenderer> provideMapRendererProvider;
 
+    private Provider<PermissionManager> permissionManagerProvider;
+
     private Provider<TraqDatabase> provideDatabaseProvider;
 
     private Provider<TripRepository> provideTripRepositoryProvider;
@@ -669,11 +694,17 @@ public final class DaggerTraqApplication_HiltComponents_SingletonC {
 
     private Provider<TrackingController> provideTrackingControllerProvider;
 
-    private Provider<PermissionManager> permissionManagerProvider;
-
     private Provider<TrackPointRepository> provideTrackPointRepositoryProvider;
 
     private Provider<ExportManager> provideExportManagerProvider;
+
+    private Provider<SensorCollector> provideSensorCollectorProvider;
+
+    private Provider<GpsProcessor> provideGpsProcessorProvider;
+
+    private Provider<AdaptiveSampler> provideAdaptiveSamplerProvider;
+
+    private Provider<TransportClassifier> provideTransportClassifierProvider;
 
     private SingletonCImpl(ApplicationContextModule applicationContextModuleParam) {
       this.applicationContextModule = applicationContextModuleParam;
@@ -717,22 +748,30 @@ public final class DaggerTraqApplication_HiltComponents_SingletonC {
       return new ExportManagerImpl(ApplicationContextModule_ProvideContextFactory.provideContext(applicationContextModule), provideTripRepositoryProvider.get(), provideTrackPointRepositoryProvider.get(), mapOfExportFormatAndTripExporter());
     }
 
+    private SensorCollectorImpl sensorCollectorImpl() {
+      return new SensorCollectorImpl(ApplicationContextModule_ProvideContextFactory.provideContext(applicationContextModule));
+    }
+
     @SuppressWarnings("unchecked")
     private void initialize(final ApplicationContextModule applicationContextModuleParam) {
       this.provideDataStoreProvider = DoubleCheck.provider(new SwitchingProvider<DataStore<Preferences>>(singletonCImpl, 2));
       this.provideUserPreferencesRepositoryProvider = DoubleCheck.provider(new SwitchingProvider<UserPreferencesRepository>(singletonCImpl, 1));
       this.provideMapRendererProvider = DoubleCheck.provider(new SwitchingProvider<MapRenderer>(singletonCImpl, 0));
-      this.provideDatabaseProvider = DoubleCheck.provider(new SwitchingProvider<TraqDatabase>(singletonCImpl, 4));
-      this.provideTripRepositoryProvider = DoubleCheck.provider(new SwitchingProvider<TripRepository>(singletonCImpl, 3));
-      this.trackingControllerImplProvider = DoubleCheck.provider(new SwitchingProvider<TrackingControllerImpl>(singletonCImpl, 6));
-      this.provideTrackingControllerProvider = DoubleCheck.provider(new SwitchingProvider<TrackingController>(singletonCImpl, 5));
-      this.permissionManagerProvider = DoubleCheck.provider(new SwitchingProvider<PermissionManager>(singletonCImpl, 7));
+      this.permissionManagerProvider = DoubleCheck.provider(new SwitchingProvider<PermissionManager>(singletonCImpl, 3));
+      this.provideDatabaseProvider = DoubleCheck.provider(new SwitchingProvider<TraqDatabase>(singletonCImpl, 5));
+      this.provideTripRepositoryProvider = DoubleCheck.provider(new SwitchingProvider<TripRepository>(singletonCImpl, 4));
+      this.trackingControllerImplProvider = DoubleCheck.provider(new SwitchingProvider<TrackingControllerImpl>(singletonCImpl, 7));
+      this.provideTrackingControllerProvider = DoubleCheck.provider(new SwitchingProvider<TrackingController>(singletonCImpl, 6));
       this.provideTrackPointRepositoryProvider = DoubleCheck.provider(new SwitchingProvider<TrackPointRepository>(singletonCImpl, 8));
       this.provideExportManagerProvider = DoubleCheck.provider(new SwitchingProvider<ExportManager>(singletonCImpl, 9));
+      this.provideSensorCollectorProvider = DoubleCheck.provider(new SwitchingProvider<SensorCollector>(singletonCImpl, 10));
+      this.provideGpsProcessorProvider = DoubleCheck.provider(new SwitchingProvider<GpsProcessor>(singletonCImpl, 11));
+      this.provideAdaptiveSamplerProvider = DoubleCheck.provider(new SwitchingProvider<AdaptiveSampler>(singletonCImpl, 12));
+      this.provideTransportClassifierProvider = DoubleCheck.provider(new SwitchingProvider<TransportClassifier>(singletonCImpl, 13));
     }
 
     @Override
-    public void injectTraqApplication(TraqApplication arg0) {
+    public void injectTraqApplication(TraqApplication traqApplication) {
     }
 
     @Override
@@ -773,26 +812,38 @@ public final class DaggerTraqApplication_HiltComponents_SingletonC {
           case 2: // androidx.datastore.core.DataStore<androidx.datastore.preferences.core.Preferences> 
           return (T) DataModule_ProvideDataStoreFactory.provideDataStore(ApplicationContextModule_ProvideContextFactory.provideContext(singletonCImpl.applicationContextModule));
 
-          case 3: // com.traq.core.data.repository.TripRepository 
+          case 3: // com.traq.core.permissions.PermissionManager 
+          return (T) new PermissionManager(ApplicationContextModule_ProvideContextFactory.provideContext(singletonCImpl.applicationContextModule));
+
+          case 4: // com.traq.core.data.repository.TripRepository 
           return (T) DataModule_ProvideTripRepositoryFactory.provideTripRepository(singletonCImpl.tripRepositoryImpl());
 
-          case 4: // com.traq.core.data.db.TraqDatabase 
+          case 5: // com.traq.core.data.db.TraqDatabase 
           return (T) DataModule_ProvideDatabaseFactory.provideDatabase(ApplicationContextModule_ProvideContextFactory.provideContext(singletonCImpl.applicationContextModule));
 
-          case 5: // com.traq.core.location.controller.TrackingController 
+          case 6: // com.traq.core.location.controller.TrackingController 
           return (T) LocationModule_ProvideTrackingControllerFactory.provideTrackingController(singletonCImpl.trackingControllerImplProvider.get());
 
-          case 6: // com.traq.core.location.controller.TrackingControllerImpl 
+          case 7: // com.traq.core.location.controller.TrackingControllerImpl 
           return (T) new TrackingControllerImpl(ApplicationContextModule_ProvideContextFactory.provideContext(singletonCImpl.applicationContextModule), singletonCImpl.provideTripRepositoryProvider.get(), singletonCImpl.batteryMonitor());
-
-          case 7: // com.traq.core.permissions.PermissionManager 
-          return (T) new PermissionManager(ApplicationContextModule_ProvideContextFactory.provideContext(singletonCImpl.applicationContextModule));
 
           case 8: // com.traq.core.data.repository.TrackPointRepository 
           return (T) DataModule_ProvideTrackPointRepositoryFactory.provideTrackPointRepository(singletonCImpl.trackPointRepositoryImpl());
 
           case 9: // com.traq.core.export.api.ExportManager 
           return (T) ExportModule_ProvideExportManagerFactory.provideExportManager(singletonCImpl.exportManagerImpl());
+
+          case 10: // com.traq.core.sensors.collector.SensorCollector 
+          return (T) SensorModule_ProvideSensorCollectorFactory.provideSensorCollector(singletonCImpl.sensorCollectorImpl());
+
+          case 11: // com.traq.core.ai.filter.GpsProcessor 
+          return (T) AiModule_ProvideGpsProcessorFactory.provideGpsProcessor(new GpsProcessorImpl());
+
+          case 12: // com.traq.core.ai.sampling.AdaptiveSampler 
+          return (T) AiModule_ProvideAdaptiveSamplerFactory.provideAdaptiveSampler(new RuleBasedSampler());
+
+          case 13: // com.traq.core.ai.classification.TransportClassifier 
+          return (T) AiModule_ProvideTransportClassifierFactory.provideTransportClassifier(new RuleBasedClassifier());
 
           default: throw new AssertionError(id);
         }

@@ -1,5 +1,6 @@
 package com.traq.feature.tripdetail.viewmodel
 
+import android.content.Intent
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -13,8 +14,11 @@ import com.traq.core.maps.api.RoutePolyline
 import com.traq.core.ui.util.ColorUtils
 import com.traq.feature.tripdetail.model.TripDetailUiState
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
@@ -33,6 +37,9 @@ class TripDetailViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(TripDetailUiState())
     val uiState: StateFlow<TripDetailUiState> = _uiState.asStateFlow()
+
+    private val _shareIntent = MutableSharedFlow<Intent>()
+    val shareIntent: SharedFlow<Intent> = _shareIntent.asSharedFlow()
 
     init {
         viewModelScope.launch {
@@ -65,11 +72,21 @@ class TripDetailViewModel @Inject constructor(
         }
     }
 
-    fun toggleExportSheet() { _uiState.update { it.copy(showExportSheet = !it.showExportSheet) } }
+    fun toggleExportSheet() {
+        _uiState.update { it.copy(showExportSheet = !it.showExportSheet) }
+    }
 
     fun exportTrip(format: ExportFormat) {
         viewModelScope.launch {
-            exportManager.exportTripToShare(tripId, format)
+            try {
+                val intent = exportManager.exportTripToShare(tripId, format)
+                _shareIntent.emit(intent)
+            } catch (e: Exception) {
+                // TODO: expose error to UI
+            }
+            _uiState.update { it.copy(showExportSheet = false) }
         }
     }
+
+    fun getSupportedFormats(): List<ExportFormat> = ExportFormat.entries.toList()
 }

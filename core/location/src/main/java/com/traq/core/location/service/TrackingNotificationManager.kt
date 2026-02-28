@@ -36,21 +36,49 @@ class TrackingNotificationManager @Inject constructor(
         val distanceKm = "%.1f km".format(state.distanceMeters / 1000)
         val elapsed = formatElapsed(state.elapsedMs)
         val speed = state.currentSpeedMps?.let { "%.0f km/h".format(it * 3.6f) } ?: "--"
+        val mode = state.currentMode?.name?.lowercase()?.replaceFirstChar { it.uppercase() } ?: ""
         val statusText = if (state.isPaused) "Paused" else "$distanceKm · $elapsed · $speed"
 
         val launchIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)
-        val pendingIntent = launchIntent?.let {
+        val contentPendingIntent = launchIntent?.let {
             PendingIntent.getActivity(context, 0, it, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         }
 
-        return NotificationCompat.Builder(context, CHANNEL_ID)
-            .setContentTitle(if (state.isPaused) "Traq - Paused" else "Traq - Recording")
+        val builder = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setContentTitle(if (state.isPaused) "Traq — Paused" else "Traq — Recording${if (mode.isNotEmpty()) " ($mode)" else ""}")
             .setContentText(statusText)
             .setSmallIcon(android.R.drawable.ic_menu_mylocation)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
-            .setContentIntent(pendingIntent)
-            .build()
+            .setContentIntent(contentPendingIntent)
+
+        if (state.isPaused) {
+            val resumeIntent = Intent(context, TrackingService::class.java).apply {
+                action = TrackingService.ACTION_RESUME
+            }
+            val resumePi = PendingIntent.getService(
+                context, 1, resumeIntent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+            )
+            builder.addAction(android.R.drawable.ic_media_play, "Resume", resumePi)
+        } else {
+            val pauseIntent = Intent(context, TrackingService::class.java).apply {
+                action = TrackingService.ACTION_PAUSE
+            }
+            val pausePi = PendingIntent.getService(
+                context, 1, pauseIntent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+            )
+            builder.addAction(android.R.drawable.ic_media_pause, "Pause", pausePi)
+        }
+
+        val stopIntent = Intent(context, TrackingService::class.java).apply {
+            action = TrackingService.ACTION_STOP
+        }
+        val stopPi = PendingIntent.getService(
+            context, 2, stopIntent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+        builder.addAction(android.R.drawable.ic_delete, "Stop", stopPi)
+
+        return builder.build()
     }
 
     fun updateNotification(state: TrackingState) {

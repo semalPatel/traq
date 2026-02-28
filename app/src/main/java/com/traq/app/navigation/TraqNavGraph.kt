@@ -17,6 +17,7 @@ import com.traq.core.maps.api.RoutePolyline
 import com.traq.core.ui.theme.TraqTeal
 import com.traq.feature.dashboard.ui.DashboardScreen
 import com.traq.feature.history.ui.HistoryScreen
+import com.traq.feature.onboarding.ui.OnboardingScreen
 import com.traq.feature.settings.ui.SettingsScreen
 import com.traq.feature.tracking.ui.TrackingScreen
 import com.traq.feature.tripdetail.ui.TripDetailScreen
@@ -24,9 +25,12 @@ import com.traq.feature.tripdetail.ui.TripDetailScreen
 @Composable
 fun TraqNavGraph(
     navController: NavHostController = rememberNavController(),
-    mapRenderer: MapRenderer? = null
+    mapRenderer: MapRenderer? = null,
+    startOnboarding: Boolean = false
 ) {
-    NavHost(navController = navController, startDestination = TraqRoute.Dashboard.route) {
+    val startDest = if (startOnboarding) TraqRoute.Onboarding.route else TraqRoute.Dashboard.route
+
+    NavHost(navController = navController, startDestination = startDest) {
         composable(TraqRoute.Dashboard.route) {
             DashboardScreen(
                 onStartTrip = { tripId -> navController.navigate(TraqRoute.Tracking.create(tripId)) },
@@ -65,6 +69,15 @@ fun TraqNavGraph(
         }
         composable(TraqRoute.Settings.route) {
             SettingsScreen(onBack = { navController.popBackStack() })
+        }
+        composable(TraqRoute.Onboarding.route) {
+            OnboardingScreen(
+                onComplete = {
+                    navController.navigate(TraqRoute.Dashboard.route) {
+                        popUpTo(TraqRoute.Onboarding.route) { inclusive = true }
+                    }
+                }
+            )
         }
     }
 }
