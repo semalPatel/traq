@@ -20,7 +20,20 @@ import com.traq.core.maps.api.RoutePolyline
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
+import org.maplibre.android.camera.CameraUpdateFactory
+import org.maplibre.android.geometry.LatLng
+import org.maplibre.android.maps.MapLibreMap
+import org.maplibre.android.maps.MapView
+import org.maplibre.android.style.layers.LineLayer
+import org.maplibre.android.style.layers.Property
+import org.maplibre.android.style.layers.PropertyFactory
+import org.maplibre.android.style.sources.GeoJsonSource
+import org.maplibre.geojson.LineString
+import org.maplibre.geojson.Point
 import javax.inject.Inject
+
+private const val ROUTE_SOURCE_ID = "traq-route-source"
+private const val ROUTE_LAYER_ID = "traq-route-layer"
 
 class MapLibreRenderer @Inject constructor(
     @ApplicationContext private val context: Context
@@ -35,36 +48,78 @@ class MapLibreRenderer @Inject constructor(
         onCameraMove: (CameraPosition) -> Unit,
         isInteractive: Boolean
     ) {
-        var mapView by remember { mutableStateOf<org.maplibre.android.maps.MapView?>(null) }
+        var mapRef by remember { mutableStateOf<MapLibreMap?>(null) }
+        var mapViewRef by remember { mutableStateOf<MapView?>(null) }
 
         AndroidView(
             modifier = modifier.fillMaxSize(),
             factory = { ctx ->
-                org.maplibre.android.maps.MapView(ctx).also { mv ->
+                MapView(ctx).also { mv ->
                     mv.onCreate(null)
                     mv.getMapAsync { map ->
-                        map.setStyle(STYLE_URL) { }
-                        map.moveCamera(
-                            org.maplibre.android.camera.CameraUpdateFactory.newCameraPosition(
-                                org.maplibre.android.camera.CameraPosition.Builder()
-                                    .target(org.maplibre.android.geometry.LatLng(
-                                        cameraPosition.latitude, cameraPosition.longitude
-                                    ))
-                                    .zoom(cameraPosition.zoom.toDouble())
-                                    .bearing(cameraPosition.bearing.toDouble())
-                                    .tilt(cameraPosition.tilt.toDouble())
-                                    .build()
+                        mapRef = map
+                        map.setStyle(STYLE_URL) {
+                            map.moveCamera(
+                                CameraUpdateFactory.newCameraPosition(
+                                    org.maplibre.android.camera.CameraPosition.Builder()
+                                        .target(LatLng(cameraPosition.latitude, cameraPosition.longitude))
+                                        .zoom(cameraPosition.zoom.toDouble())
+                                        .bearing(cameraPosition.bearing.toDouble())
+                                        .tilt(cameraPosition.tilt.toDouble())
+                                        .build()
+                                )
                             )
-                        )
+                        }
                     }
-                    mapView = mv
+                    mapViewRef = mv
                 }
             },
-            update = { }
+            update = { _ ->
+                val map = mapRef ?: return@AndroidView
+
+                map.animateCamera(
+                    CameraUpdateFactory.newCameraPosition(
+                        org.maplibre.android.camera.CameraPosition.Builder()
+                            .target(LatLng(cameraPosition.latitude, cameraPosition.longitude))
+                            .zoom(cameraPosition.zoom.toDouble())
+                            .bearing(cameraPosition.bearing.toDouble())
+                            .build()
+                    ),
+                    300
+                )
+
+                val style = map.style ?: return@AndroidView
+
+                style.removeLayer(ROUTE_LAYER_ID)
+                style.removeSource(ROUTE_SOURCE_ID)
+
+                polylines.forEach { polyline ->
+                    if (polyline.points.size >= 2) {
+                        val coords = polyline.points.map {
+                            Point.fromLngLat(it.longitude, it.latitude)
+                        }
+                        val lineString = LineString.fromLngLats(coords)
+
+                        style.addSource(GeoJsonSource(ROUTE_SOURCE_ID, lineString))
+                        style.addLayer(
+                            LineLayer(ROUTE_LAYER_ID, ROUTE_SOURCE_ID).apply {
+                                setProperties(
+                                    PropertyFactory.lineColor(polyline.colorInt),
+                                    PropertyFactory.lineWidth(polyline.widthDp),
+                                    PropertyFactory.lineCap(Property.LINE_CAP_ROUND),
+                                    PropertyFactory.lineJoin(Property.LINE_JOIN_ROUND)
+                                )
+                            }
+                        )
+                    }
+                }
+            }
         )
 
         DisposableEffect(Unit) {
-            onDispose { mapView?.onDestroy() }
+            onDispose {
+                mapViewRef?.onDestroy()
+            }
         }
     }
 
@@ -89,13 +144,10 @@ class MapLibreRenderer @Inject constructor(
     override suspend fun downloadRegion(
         name: String, bounds: LatLngBounds, zoomRange: IntRange
     ): Flow<DownloadProgress> {
-        // TODO: Implement with MapLibre OfflineManager
         return flowOf(DownloadProgress(0, 0, 0f, false))
     }
 
-    override suspend fun deleteRegion(regionId: String) {
-        // TODO: Implement with MapLibre OfflineManager
-    }
+    override suspend fun deleteRegion(regionId: String) {}
 
     override fun getCachedRegions(): Flow<List<OfflineRegion>> = flowOf(emptyList())
 
