@@ -40,9 +40,14 @@ import com.traq.core.common.model.ExportFormat
 import com.traq.core.maps.api.CameraPosition
 import com.traq.core.maps.api.MapRenderer
 import com.traq.core.maps.api.RenderMapView
+import com.traq.core.ui.component.ChartDataPoint
+import com.traq.core.ui.component.ElevationChart
 import com.traq.core.ui.component.LoadingIndicator
 import com.traq.core.ui.component.MetricCard
+import com.traq.core.ui.component.ModeSegment
+import com.traq.core.ui.component.SpeedChart
 import com.traq.core.ui.component.TransportModeIcon
+import com.traq.core.ui.component.TransportModeTimeline
 import com.traq.core.ui.util.FormatUtils
 import com.traq.feature.tripdetail.viewmodel.TripDetailViewModel
 import java.time.ZoneId
@@ -163,6 +168,70 @@ fun TripDetailScreen(
                 }
                 Spacer(Modifier.height(12.dp))
                 MetricCard(label = "Track Points", value = trip.metrics.pointCount.toString(), modifier = Modifier.fillMaxWidth())
+
+                if (state.trackPoints.size >= 2) {
+                    Spacer(Modifier.height(16.dp))
+
+                    val elevationPoints = state.trackPoints.filter { it.altitude != null }
+                    if (elevationPoints.size >= 2) {
+                        val minAlt = elevationPoints.minOf { it.altitude!! }
+                        val maxAlt = elevationPoints.maxOf { it.altitude!! }
+                        val altRange = (maxAlt - minAlt).coerceAtLeast(1.0)
+
+                        ElevationChart(
+                            points = elevationPoints.mapIndexed { index, pt ->
+                                ChartDataPoint(
+                                    x = index.toFloat() / (elevationPoints.size - 1).coerceAtLeast(1),
+                                    y = ((pt.altitude!! - minAlt) / altRange).toFloat()
+                                )
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Spacer(Modifier.height(16.dp))
+                    }
+
+                    val speedPoints = state.trackPoints.filter { it.speed != null }
+                    if (speedPoints.size >= 2) {
+                        val maxSpeed = speedPoints.maxOf { it.speed!! }.coerceAtLeast(1f)
+
+                        SpeedChart(
+                            points = speedPoints.mapIndexed { index, pt ->
+                                ChartDataPoint(
+                                    x = index.toFloat() / (speedPoints.size - 1).coerceAtLeast(1),
+                                    y = (pt.speed!! / maxSpeed)
+                                )
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Spacer(Modifier.height(16.dp))
+                    }
+
+                    val modePoints = state.trackPoints.filter { it.transportMode != null }
+                    if (modePoints.size >= 2) {
+                        val segments = mutableListOf<ModeSegment>()
+                        var currentMode = modePoints.first().transportMode!!
+                        var segStart = 0
+                        modePoints.forEachIndexed { index, pt ->
+                            val mode = pt.transportMode!!
+                            if (mode != currentMode || index == modePoints.size - 1) {
+                                segments.add(
+                                    ModeSegment(
+                                        startFraction = segStart.toFloat() / (modePoints.size - 1).coerceAtLeast(1),
+                                        endFraction = index.toFloat() / (modePoints.size - 1).coerceAtLeast(1),
+                                        mode = currentMode
+                                    )
+                                )
+                                currentMode = mode
+                                segStart = index
+                            }
+                        }
+                        TransportModeTimeline(
+                            segments = segments,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Spacer(Modifier.height(16.dp))
+                    }
+                }
 
                 Spacer(Modifier.height(24.dp))
                 Button(onClick = { viewModel.toggleExportSheet() }, modifier = Modifier.fillMaxWidth()) {
