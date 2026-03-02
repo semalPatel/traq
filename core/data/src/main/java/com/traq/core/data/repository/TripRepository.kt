@@ -12,4 +12,5 @@ interface TripRepository {
     suspend fun updateTrip(trip: Trip)
     suspend fun completeTrip(id: String, endTime: Instant, metrics: TripMetrics)
     suspend fun deleteTrip(id: String)
+    suspend fun getActiveTrip(): Trip?
 }

@@ -6,7 +6,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -19,6 +18,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.Route
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
@@ -30,6 +30,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -38,13 +39,31 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.traq.feature.onboarding.viewmodel.OnboardingViewModel
 
+enum class OnboardingPageType {
+    WELCOME, LOCATION, BACKGROUND, BATTERY, OEM_GUIDE, NOTIFICATIONS, DONE
+}
+
 @Composable
 fun OnboardingScreen(
     onComplete: () -> Unit,
     viewModel: OnboardingViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
-    val progress = (state.currentPage + 1).toFloat() / state.totalPages
+
+    val pages = remember(state.needsOemGuide) {
+        buildList {
+            add(OnboardingPageType.WELCOME)
+            add(OnboardingPageType.LOCATION)
+            add(OnboardingPageType.BACKGROUND)
+            add(OnboardingPageType.BATTERY)
+            if (state.needsOemGuide) add(OnboardingPageType.OEM_GUIDE)
+            if (Build.VERSION.SDK_INT >= 33) add(OnboardingPageType.NOTIFICATIONS)
+            add(OnboardingPageType.DONE)
+        }
+    }
+
+    val currentPageType = pages.getOrNull(state.currentPage) ?: OnboardingPageType.DONE
+    val progress = (state.currentPage + 1).toFloat() / pages.size
 
     val locationLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -71,15 +90,16 @@ fun OnboardingScreen(
             )
             Spacer(Modifier.height(32.dp))
 
-            when (state.currentPage) {
-                0 -> OnboardingPage(
+            when (currentPageType) {
+                OnboardingPageType.WELCOME -> OnboardingPage(
                     icon = Icons.Default.Route,
                     title = "Welcome to Traq",
                     description = "AI-powered GPS tracking that respects your battery. Record your journeys with precision.",
                     buttonText = "Get Started",
                     onAction = { viewModel.nextPage() }
                 )
-                1 -> OnboardingPage(
+
+                OnboardingPageType.LOCATION -> OnboardingPage(
                     icon = Icons.Default.LocationOn,
                     title = "Location Access",
                     description = "Traq needs location access to record your trips. This is the core feature of the app.",
@@ -95,7 +115,8 @@ fun OnboardingScreen(
                     },
                     onSkip = { viewModel.nextPage() }
                 )
-                2 -> OnboardingPage(
+
+                OnboardingPageType.BACKGROUND -> OnboardingPage(
                     icon = Icons.Default.MyLocation,
                     title = "Background Location",
                     description = "Allow 'All the time' location access so tracking works when your screen is off.",
@@ -108,42 +129,56 @@ fun OnboardingScreen(
                     },
                     onSkip = { viewModel.nextPage() }
                 )
-                3 -> OnboardingPage(
+
+                OnboardingPageType.BATTERY -> OnboardingPage(
                     icon = Icons.Default.BatteryChargingFull,
                     title = "Battery Optimization",
                     description = "Disable battery optimization for Traq to prevent the system from stopping tracking.",
                     buttonText = if (state.permissionState.batteryOptimization) "Disabled" else "Fix Battery Settings",
                     isGranted = state.permissionState.batteryOptimization,
-                    onAction = { viewModel.nextPage() },
+                    onAction = {
+                        if (!state.permissionState.batteryOptimization) {
+                            viewModel.requestBatteryOptimization()
+                        } else {
+                            viewModel.nextPage()
+                        }
+                    },
                     onSkip = { viewModel.nextPage() }
                 )
-                else -> {
-                    if (state.currentPage == state.totalPages - 1) {
-                        OnboardingPage(
-                            icon = Icons.Default.Check,
-                            title = "You're All Set!",
-                            description = "Traq is ready to record your trips. Tap below to start.",
-                            buttonText = "Start Using Traq",
-                            onAction = onComplete
-                        )
-                    } else if (Build.VERSION.SDK_INT >= 33 && !state.permissionState.notifications) {
-                        OnboardingPage(
-                            icon = Icons.Default.Notifications,
-                            title = "Notifications",
-                            description = "See live trip progress in your notification bar.",
-                            buttonText = "Allow Notifications",
-                            onAction = {
-                                if (Build.VERSION.SDK_INT >= 33) {
-                                    notificationLauncher.launch("android.permission.POST_NOTIFICATIONS")
-                                }
-                                viewModel.nextPage()
-                            },
-                            onSkip = { viewModel.nextPage() }
-                        )
-                    } else {
+
+                OnboardingPageType.OEM_GUIDE -> OnboardingPage(
+                    icon = Icons.Default.PhoneAndroid,
+                    title = "${state.oemType} Battery Guide",
+                    description = state.oemInstructions,
+                    buttonText = "Open Battery Settings",
+                    onAction = { viewModel.openBatterySettings() },
+                    onSkip = {
+                        viewModel.markOemGuideCompleted()
                         viewModel.nextPage()
                     }
-                }
+                )
+
+                OnboardingPageType.NOTIFICATIONS -> OnboardingPage(
+                    icon = Icons.Default.Notifications,
+                    title = "Notifications",
+                    description = "See live trip progress in your notification bar.",
+                    buttonText = "Allow Notifications",
+                    onAction = {
+                        if (Build.VERSION.SDK_INT >= 33) {
+                            notificationLauncher.launch("android.permission.POST_NOTIFICATIONS")
+                        }
+                        viewModel.nextPage()
+                    },
+                    onSkip = { viewModel.nextPage() }
+                )
+
+                OnboardingPageType.DONE -> OnboardingPage(
+                    icon = Icons.Default.Check,
+                    title = "You're All Set!",
+                    description = "Traq is ready to record your trips. Tap below to start.",
+                    buttonText = "Start Using Traq",
+                    onAction = onComplete
+                )
             }
         }
     }

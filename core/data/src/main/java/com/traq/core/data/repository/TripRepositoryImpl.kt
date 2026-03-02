@@ -55,4 +55,8 @@ class TripRepositoryImpl @Inject constructor(
     override suspend fun deleteTrip(id: String) = withContext(Dispatchers.IO) {
         tripDao.deleteById(id)
     }
+
+    override suspend fun getActiveTrip(): Trip? = withContext(Dispatchers.IO) {
+        tripDao.getActiveTrip()?.toDomain()
+    }
 }

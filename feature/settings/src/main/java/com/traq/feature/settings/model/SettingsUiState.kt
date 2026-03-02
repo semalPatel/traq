@@ -10,5 +10,8 @@ data class SettingsUiState(
     val mapRenderer: MapRendererType = MapRendererType.GOOGLE,
     val defaultExportFormat: ExportFormat = ExportFormat.TRAQ,
     val autoExportEnabled: Boolean = false,
+    val isBatteryOptimized: Boolean = false,
+    val databaseSizeMb: String = "--",
+    val cacheSizeMb: String = "--",
     val isLoading: Boolean = true
 )

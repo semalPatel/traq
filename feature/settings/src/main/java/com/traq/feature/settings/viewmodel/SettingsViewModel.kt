@@ -6,8 +6,12 @@ import com.traq.core.common.model.ExportFormat
 import com.traq.core.common.model.MapRendererType
 import com.traq.core.common.model.TrackingAccuracy
 import com.traq.core.data.repository.UserPreferencesRepository
+import com.traq.core.data.util.StorageCalculator
+import com.traq.core.permissions.BatteryOptimizationHelper
+import com.traq.core.permissions.PermissionManager
 import com.traq.feature.settings.model.SettingsUiState
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -18,7 +22,10 @@ import javax.inject.Inject
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
-    private val prefs: UserPreferencesRepository
+    private val prefs: UserPreferencesRepository,
+    private val permissionManager: PermissionManager,
+    private val batteryHelper: BatteryOptimizationHelper,
+    private val storageCalculator: StorageCalculator
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
@@ -39,10 +46,12 @@ class SettingsViewModel @Inject constructor(
                     mapRenderer = map,
                     defaultExportFormat = export,
                     autoExportEnabled = autoExport,
+                    isBatteryOptimized = permissionManager.isBatteryOptimizationDisabled(),
                     isLoading = false
                 )
             }.collect { _uiState.value = it }
         }
+        refreshStorageInfo()
     }
 
     fun setTrackingAccuracy(accuracy: TrackingAccuracy) {
@@ -63,5 +72,39 @@ class SettingsViewModel @Inject constructor(
 
     fun setAutoExport(enabled: Boolean) {
         viewModelScope.launch { prefs.setAutoExportEnabled(enabled) }
+    }
+
+    fun requestBatteryOptimization() {
+        batteryHelper.requestDisableBatteryOptimization()
+    }
+
+    fun openBatterySettings() {
+        batteryHelper.openBatterySettings()
+    }
+
+    fun clearCache() {
+        viewModelScope.launch(Dispatchers.IO) {
+            storageCalculator.clearCache()
+            refreshStorageInfo()
+        }
+    }
+
+    private fun refreshStorageInfo() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val dbBytes = storageCalculator.getDatabaseSizeBytes()
+            val cacheBytes = storageCalculator.getCacheSizeBytes()
+            _uiState.update {
+                it.copy(
+                    databaseSizeMb = formatSize(dbBytes),
+                    cacheSizeMb = formatSize(cacheBytes)
+                )
+            }
+        }
+    }
+
+    private fun formatSize(bytes: Long): String = when {
+        bytes < 1024 -> "$bytes B"
+        bytes < 1024 * 1024 -> "%.1f KB".format(bytes / 1024.0)
+        else -> "%.1f MB".format(bytes / (1024.0 * 1024.0))
     }
 }

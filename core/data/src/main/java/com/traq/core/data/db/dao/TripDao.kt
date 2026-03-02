@@ -28,6 +28,9 @@ interface TripDao {
     @Query("DELETE FROM trips WHERE id = :id")
     suspend fun deleteById(id: String)
 
+    @Query("SELECT * FROM trips WHERE status IN ('ACTIVE', 'PAUSED') ORDER BY startTime DESC LIMIT 1")
+    suspend fun getActiveTrip(): TripEntity?
+
     @Query("SELECT COUNT(*) FROM trips")
     suspend fun getTripCount(): Int
 

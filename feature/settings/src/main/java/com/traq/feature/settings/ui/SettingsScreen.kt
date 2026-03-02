@@ -88,6 +88,20 @@ fun SettingsScreen(
                 supportingContent = { Text(state.mapRenderer.displayName()) },
                 modifier = Modifier.clickable { showMapRendererDialog = true }
             )
+            Text(
+                "Changing map renderer requires app restart",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+            )
+
+            // Battery section
+            Text("Battery", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+            ListItem(
+                headlineContent = { Text("Battery Optimization") },
+                supportingContent = { Text(if (state.isBatteryOptimized) "Disabled (recommended)" else "Enabled — may stop tracking") },
+                modifier = Modifier.clickable { viewModel.requestBatteryOptimization() }
+            )
 
             // Export section
             Text("Export", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))

@@ -573,6 +573,116 @@ public final class TripDao_Impl implements TripDao {
   }
 
   @Override
+  public Object getActiveTrip(final Continuation<? super TripEntity> $completion) {
+    final String _sql = "SELECT * FROM trips WHERE status IN ('ACTIVE', 'PAUSED') ORDER BY startTime DESC LIMIT 1";
+    final RoomSQLiteQuery _statement = RoomSQLiteQuery.acquire(_sql, 0);
+    final CancellationSignal _cancellationSignal = DBUtil.createCancellationSignal();
+    return CoroutinesRoom.execute(__db, false, _cancellationSignal, new Callable<TripEntity>() {
+      @Override
+      @Nullable
+      public TripEntity call() throws Exception {
+        final Cursor _cursor = DBUtil.query(__db, _statement, false, null);
+        try {
+          final int _cursorIndexOfId = CursorUtil.getColumnIndexOrThrow(_cursor, "id");
+          final int _cursorIndexOfName = CursorUtil.getColumnIndexOrThrow(_cursor, "name");
+          final int _cursorIndexOfStartTime = CursorUtil.getColumnIndexOrThrow(_cursor, "startTime");
+          final int _cursorIndexOfEndTime = CursorUtil.getColumnIndexOrThrow(_cursor, "endTime");
+          final int _cursorIndexOfStatus = CursorUtil.getColumnIndexOrThrow(_cursor, "status");
+          final int _cursorIndexOfDominantMode = CursorUtil.getColumnIndexOrThrow(_cursor, "dominantMode");
+          final int _cursorIndexOfTotalDistanceMeters = CursorUtil.getColumnIndexOrThrow(_cursor, "totalDistanceMeters");
+          final int _cursorIndexOfTotalDurationMs = CursorUtil.getColumnIndexOrThrow(_cursor, "totalDurationMs");
+          final int _cursorIndexOfMovingDurationMs = CursorUtil.getColumnIndexOrThrow(_cursor, "movingDurationMs");
+          final int _cursorIndexOfAvgSpeedMps = CursorUtil.getColumnIndexOrThrow(_cursor, "avgSpeedMps");
+          final int _cursorIndexOfMaxSpeedMps = CursorUtil.getColumnIndexOrThrow(_cursor, "maxSpeedMps");
+          final int _cursorIndexOfTotalAscentMeters = CursorUtil.getColumnIndexOrThrow(_cursor, "totalAscentMeters");
+          final int _cursorIndexOfTotalDescentMeters = CursorUtil.getColumnIndexOrThrow(_cursor, "totalDescentMeters");
+          final int _cursorIndexOfStartLatitude = CursorUtil.getColumnIndexOrThrow(_cursor, "startLatitude");
+          final int _cursorIndexOfStartLongitude = CursorUtil.getColumnIndexOrThrow(_cursor, "startLongitude");
+          final int _cursorIndexOfEndLatitude = CursorUtil.getColumnIndexOrThrow(_cursor, "endLatitude");
+          final int _cursorIndexOfEndLongitude = CursorUtil.getColumnIndexOrThrow(_cursor, "endLongitude");
+          final int _cursorIndexOfBatteryStartPercent = CursorUtil.getColumnIndexOrThrow(_cursor, "batteryStartPercent");
+          final int _cursorIndexOfBatteryEndPercent = CursorUtil.getColumnIndexOrThrow(_cursor, "batteryEndPercent");
+          final int _cursorIndexOfPointCount = CursorUtil.getColumnIndexOrThrow(_cursor, "pointCount");
+          final TripEntity _result;
+          if (_cursor.moveToFirst()) {
+            final String _tmpId;
+            _tmpId = _cursor.getString(_cursorIndexOfId);
+            final String _tmpName;
+            if (_cursor.isNull(_cursorIndexOfName)) {
+              _tmpName = null;
+            } else {
+              _tmpName = _cursor.getString(_cursorIndexOfName);
+            }
+            final long _tmpStartTime;
+            _tmpStartTime = _cursor.getLong(_cursorIndexOfStartTime);
+            final Long _tmpEndTime;
+            if (_cursor.isNull(_cursorIndexOfEndTime)) {
+              _tmpEndTime = null;
+            } else {
+              _tmpEndTime = _cursor.getLong(_cursorIndexOfEndTime);
+            }
+            final String _tmpStatus;
+            _tmpStatus = _cursor.getString(_cursorIndexOfStatus);
+            final String _tmpDominantMode;
+            if (_cursor.isNull(_cursorIndexOfDominantMode)) {
+              _tmpDominantMode = null;
+            } else {
+              _tmpDominantMode = _cursor.getString(_cursorIndexOfDominantMode);
+            }
+            final double _tmpTotalDistanceMeters;
+            _tmpTotalDistanceMeters = _cursor.getDouble(_cursorIndexOfTotalDistanceMeters);
+            final long _tmpTotalDurationMs;
+            _tmpTotalDurationMs = _cursor.getLong(_cursorIndexOfTotalDurationMs);
+            final long _tmpMovingDurationMs;
+            _tmpMovingDurationMs = _cursor.getLong(_cursorIndexOfMovingDurationMs);
+            final double _tmpAvgSpeedMps;
+            _tmpAvgSpeedMps = _cursor.getDouble(_cursorIndexOfAvgSpeedMps);
+            final double _tmpMaxSpeedMps;
+            _tmpMaxSpeedMps = _cursor.getDouble(_cursorIndexOfMaxSpeedMps);
+            final double _tmpTotalAscentMeters;
+            _tmpTotalAscentMeters = _cursor.getDouble(_cursorIndexOfTotalAscentMeters);
+            final double _tmpTotalDescentMeters;
+            _tmpTotalDescentMeters = _cursor.getDouble(_cursorIndexOfTotalDescentMeters);
+            final double _tmpStartLatitude;
+            _tmpStartLatitude = _cursor.getDouble(_cursorIndexOfStartLatitude);
+            final double _tmpStartLongitude;
+            _tmpStartLongitude = _cursor.getDouble(_cursorIndexOfStartLongitude);
+            final Double _tmpEndLatitude;
+            if (_cursor.isNull(_cursorIndexOfEndLatitude)) {
+              _tmpEndLatitude = null;
+            } else {
+              _tmpEndLatitude = _cursor.getDouble(_cursorIndexOfEndLatitude);
+            }
+            final Double _tmpEndLongitude;
+            if (_cursor.isNull(_cursorIndexOfEndLongitude)) {
+              _tmpEndLongitude = null;
+            } else {
+              _tmpEndLongitude = _cursor.getDouble(_cursorIndexOfEndLongitude);
+            }
+            final int _tmpBatteryStartPercent;
+            _tmpBatteryStartPercent = _cursor.getInt(_cursorIndexOfBatteryStartPercent);
+            final Integer _tmpBatteryEndPercent;
+            if (_cursor.isNull(_cursorIndexOfBatteryEndPercent)) {
+              _tmpBatteryEndPercent = null;
+            } else {
+              _tmpBatteryEndPercent = _cursor.getInt(_cursorIndexOfBatteryEndPercent);
+            }
+            final int _tmpPointCount;
+            _tmpPointCount = _cursor.getInt(_cursorIndexOfPointCount);
+            _result = new TripEntity(_tmpId,_tmpName,_tmpStartTime,_tmpEndTime,_tmpStatus,_tmpDominantMode,_tmpTotalDistanceMeters,_tmpTotalDurationMs,_tmpMovingDurationMs,_tmpAvgSpeedMps,_tmpMaxSpeedMps,_tmpTotalAscentMeters,_tmpTotalDescentMeters,_tmpStartLatitude,_tmpStartLongitude,_tmpEndLatitude,_tmpEndLongitude,_tmpBatteryStartPercent,_tmpBatteryEndPercent,_tmpPointCount);
+          } else {
+            _result = null;
+          }
+          return _result;
+        } finally {
+          _cursor.close();
+          _statement.release();
+        }
+      }
+    }, $completion);
+  }
+
+  @Override
   public Object getTripCount(final Continuation<? super Integer> $completion) {
     final String _sql = "SELECT COUNT(*) FROM trips";
     final RoomSQLiteQuery _statement = RoomSQLiteQuery.acquire(_sql, 0);

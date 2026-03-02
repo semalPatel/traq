@@ -1,6 +1,7 @@
 package com.traq.feature.onboarding.viewmodel;
 
 import com.traq.core.data.repository.UserPreferencesRepository;
+import com.traq.core.permissions.BatteryOptimizationHelper;
 import com.traq.core.permissions.PermissionManager;
 import dagger.internal.DaggerGenerated;
 import dagger.internal.Factory;
@@ -30,25 +31,30 @@ public final class OnboardingViewModel_Factory implements Factory<OnboardingView
 
   private final Provider<UserPreferencesRepository> prefsRepositoryProvider;
 
+  private final Provider<BatteryOptimizationHelper> batteryHelperProvider;
+
   public OnboardingViewModel_Factory(Provider<PermissionManager> permissionManagerProvider,
-      Provider<UserPreferencesRepository> prefsRepositoryProvider) {
+      Provider<UserPreferencesRepository> prefsRepositoryProvider,
+      Provider<BatteryOptimizationHelper> batteryHelperProvider) {
     this.permissionManagerProvider = permissionManagerProvider;
     this.prefsRepositoryProvider = prefsRepositoryProvider;
+    this.batteryHelperProvider = batteryHelperProvider;
   }
 
   @Override
   public OnboardingViewModel get() {
-    return newInstance(permissionManagerProvider.get(), prefsRepositoryProvider.get());
+    return newInstance(permissionManagerProvider.get(), prefsRepositoryProvider.get(), batteryHelperProvider.get());
   }
 
   public static OnboardingViewModel_Factory create(
       Provider<PermissionManager> permissionManagerProvider,
-      Provider<UserPreferencesRepository> prefsRepositoryProvider) {
-    return new OnboardingViewModel_Factory(permissionManagerProvider, prefsRepositoryProvider);
+      Provider<UserPreferencesRepository> prefsRepositoryProvider,
+      Provider<BatteryOptimizationHelper> batteryHelperProvider) {
+    return new OnboardingViewModel_Factory(permissionManagerProvider, prefsRepositoryProvider, batteryHelperProvider);
   }
 
   public static OnboardingViewModel newInstance(PermissionManager permissionManager,
-      UserPreferencesRepository prefsRepository) {
-    return new OnboardingViewModel(permissionManager, prefsRepository);
+      UserPreferencesRepository prefsRepository, BatteryOptimizationHelper batteryHelper) {
+    return new OnboardingViewModel(permissionManager, prefsRepository, batteryHelper);
   }
 }

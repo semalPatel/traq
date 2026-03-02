@@ -4,6 +4,7 @@ import android.os.Build
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.traq.core.data.repository.UserPreferencesRepository
+import com.traq.core.permissions.BatteryOptimizationHelper
 import com.traq.core.permissions.OemDetector
 import com.traq.core.permissions.PermissionManager
 import com.traq.feature.onboarding.model.OnboardingUiState
@@ -19,7 +20,8 @@ import javax.inject.Inject
 @HiltViewModel
 class OnboardingViewModel @Inject constructor(
     private val permissionManager: PermissionManager,
-    private val prefsRepository: UserPreferencesRepository
+    private val prefsRepository: UserPreferencesRepository,
+    private val batteryHelper: BatteryOptimizationHelper
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(OnboardingUiState())
@@ -27,10 +29,9 @@ class OnboardingViewModel @Inject constructor(
 
     init {
         val needsOem = OemDetector.needsOemGuide()
-        var pages = 4 // Welcome + Location + Background + Battery + Done
-        if (Build.VERSION.SDK_INT >= 29) pages++ // Activity Recognition
-        if (Build.VERSION.SDK_INT >= 33) pages++ // Notifications
-        if (needsOem) pages++ // OEM guide
+        var pages = 5 // Welcome + Location + Background + Battery + Done
+        if (Build.VERSION.SDK_INT >= 33) pages++
+        if (needsOem) pages++
 
         _uiState.value = OnboardingUiState(
             totalPages = pages,
@@ -47,6 +48,15 @@ class OnboardingViewModel @Inject constructor(
 
     fun nextPage() {
         _uiState.update { it.copy(currentPage = (it.currentPage + 1).coerceAtMost(it.totalPages - 1)) }
+    }
+
+    fun requestBatteryOptimization() {
+        batteryHelper.requestDisableBatteryOptimization()
+        refreshPermissionState()
+    }
+
+    fun openBatterySettings() {
+        batteryHelper.openBatterySettings()
     }
 
     fun markOemGuideCompleted() {
