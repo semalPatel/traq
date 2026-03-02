@@ -6,6 +6,7 @@ import com.traq.core.ai.lifecycle.TripLifecycleManager;
 import com.traq.core.ai.sampling.AdaptiveSampler;
 import com.traq.core.data.repository.TrackPointRepository;
 import com.traq.core.data.repository.TripRepository;
+import com.traq.core.data.repository.UserPreferencesRepository;
 import com.traq.core.location.provider.LocationProvider;
 import com.traq.core.location.util.BatteryMonitor;
 import com.traq.core.location.util.WakeLockManager;
@@ -55,6 +56,8 @@ public final class TrackingService_MembersInjector implements MembersInjector<Tr
 
   private final Provider<TripLifecycleManager> tripLifecycleManagerProvider;
 
+  private final Provider<UserPreferencesRepository> prefsRepositoryProvider;
+
   public TrackingService_MembersInjector(Provider<LocationProvider> locationProvider,
       Provider<TrackPointRepository> trackPointRepositoryProvider,
       Provider<TripRepository> tripRepositoryProvider,
@@ -65,7 +68,8 @@ public final class TrackingService_MembersInjector implements MembersInjector<Tr
       Provider<GpsProcessor> gpsProcessorProvider,
       Provider<AdaptiveSampler> adaptiveSamplerProvider,
       Provider<TransportClassifier> transportClassifierProvider,
-      Provider<TripLifecycleManager> tripLifecycleManagerProvider) {
+      Provider<TripLifecycleManager> tripLifecycleManagerProvider,
+      Provider<UserPreferencesRepository> prefsRepositoryProvider) {
     this.locationProvider = locationProvider;
     this.trackPointRepositoryProvider = trackPointRepositoryProvider;
     this.tripRepositoryProvider = tripRepositoryProvider;
@@ -77,6 +81,7 @@ public final class TrackingService_MembersInjector implements MembersInjector<Tr
     this.adaptiveSamplerProvider = adaptiveSamplerProvider;
     this.transportClassifierProvider = transportClassifierProvider;
     this.tripLifecycleManagerProvider = tripLifecycleManagerProvider;
+    this.prefsRepositoryProvider = prefsRepositoryProvider;
   }
 
   public static MembersInjector<TrackingService> create(Provider<LocationProvider> locationProvider,
@@ -89,8 +94,9 @@ public final class TrackingService_MembersInjector implements MembersInjector<Tr
       Provider<GpsProcessor> gpsProcessorProvider,
       Provider<AdaptiveSampler> adaptiveSamplerProvider,
       Provider<TransportClassifier> transportClassifierProvider,
-      Provider<TripLifecycleManager> tripLifecycleManagerProvider) {
-    return new TrackingService_MembersInjector(locationProvider, trackPointRepositoryProvider, tripRepositoryProvider, notificationManagerProvider, wakeLockManagerProvider, batteryMonitorProvider, sensorCollectorProvider, gpsProcessorProvider, adaptiveSamplerProvider, transportClassifierProvider, tripLifecycleManagerProvider);
+      Provider<TripLifecycleManager> tripLifecycleManagerProvider,
+      Provider<UserPreferencesRepository> prefsRepositoryProvider) {
+    return new TrackingService_MembersInjector(locationProvider, trackPointRepositoryProvider, tripRepositoryProvider, notificationManagerProvider, wakeLockManagerProvider, batteryMonitorProvider, sensorCollectorProvider, gpsProcessorProvider, adaptiveSamplerProvider, transportClassifierProvider, tripLifecycleManagerProvider, prefsRepositoryProvider);
   }
 
   @Override
@@ -106,6 +112,7 @@ public final class TrackingService_MembersInjector implements MembersInjector<Tr
     injectAdaptiveSampler(instance, adaptiveSamplerProvider.get());
     injectTransportClassifier(instance, transportClassifierProvider.get());
     injectTripLifecycleManager(instance, tripLifecycleManagerProvider.get());
+    injectPrefsRepository(instance, prefsRepositoryProvider.get());
   }
 
   @InjectedFieldSignature("com.traq.core.location.service.TrackingService.locationProvider")
@@ -169,5 +176,11 @@ public final class TrackingService_MembersInjector implements MembersInjector<Tr
   public static void injectTripLifecycleManager(TrackingService instance,
       TripLifecycleManager tripLifecycleManager) {
     instance.tripLifecycleManager = tripLifecycleManager;
+  }
+
+  @InjectedFieldSignature("com.traq.core.location.service.TrackingService.prefsRepository")
+  public static void injectPrefsRepository(TrackingService instance,
+      UserPreferencesRepository prefsRepository) {
+    instance.prefsRepository = prefsRepository;
   }
 }

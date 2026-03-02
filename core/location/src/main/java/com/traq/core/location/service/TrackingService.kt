@@ -17,6 +17,7 @@ import com.traq.core.data.model.TrackPoint
 import com.traq.core.data.model.TripMetrics
 import com.traq.core.data.repository.TrackPointRepository
 import com.traq.core.data.repository.TripRepository
+import com.traq.core.data.repository.UserPreferencesRepository
 import com.traq.core.location.model.TrackingState
 import com.traq.core.location.provider.LocationProvider
 import com.traq.core.location.util.BatteryMonitor
@@ -32,6 +33,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
 import java.time.Instant
@@ -52,6 +54,7 @@ class TrackingService : Service() {
     @Inject lateinit var adaptiveSampler: AdaptiveSampler
     @Inject lateinit var transportClassifier: TransportClassifier
     @Inject lateinit var tripLifecycleManager: TripLifecycleManager
+    @Inject lateinit var prefsRepository: UserPreferencesRepository
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var locationCollectionJob: Job? = null
@@ -88,6 +91,18 @@ class TrackingService : Service() {
             ACTION_PAUSE -> pauseTracking()
             ACTION_RESUME -> resumeTracking()
             ACTION_STOP -> stopTracking()
+            null -> {
+                if (currentTripId == null) {
+                    serviceScope.launch {
+                        val activeTrip = tripRepository.getActiveTrip()
+                        if (activeTrip != null) {
+                            recoverTrip(activeTrip.id)
+                        } else {
+                            stopSelf()
+                        }
+                    }
+                }
+            }
         }
         return START_STICKY
     }
@@ -117,12 +132,63 @@ class TrackingService : Service() {
         }
 
         wakeLockManager.acquire()
-        locationProvider.start()
-        sensorCollector.start()
 
-        locationCollectionJob = serviceScope.launch {
-            locationProvider.locations.collect { location ->
-                processLocation(location)
+        serviceScope.launch {
+            val accuracy = prefsRepository.trackingAccuracy.first()
+            locationProvider.start(accuracy)
+            sensorCollector.start()
+
+            locationCollectionJob = launch {
+                locationProvider.locations.collect { location ->
+                    processLocation(location)
+                }
+            }
+        }
+
+        timerJob = serviceScope.launch {
+            while (true) {
+                delay(1000)
+                updateState()
+            }
+        }
+
+        updateState()
+    }
+
+    private fun recoverTrip(tripId: String) {
+        currentTripId = tripId
+        startTimeMs = System.currentTimeMillis()
+        totalPausedMs = 0L
+        totalDistanceMeters = 0.0
+        totalAscentMeters = 0.0
+        totalDescentMeters = 0.0
+        maxSpeedMps = 0f
+        pointCount = 0
+        lastRecordedPoint = null
+
+        notificationManager.createNotificationChannel()
+        val notification = notificationManager.buildNotification(TrackingState.IDLE)
+
+        if (Build.VERSION.SDK_INT >= 34) {
+            ServiceCompat.startForeground(
+                this, TrackingNotificationManager.NOTIFICATION_ID, notification,
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION
+            )
+        } else {
+            startForeground(TrackingNotificationManager.NOTIFICATION_ID, notification)
+        }
+
+        wakeLockManager.acquire()
+
+        serviceScope.launch {
+            val accuracy = prefsRepository.trackingAccuracy.first()
+            locationProvider.start(accuracy)
+            sensorCollector.start()
+
+            locationCollectionJob = launch {
+                locationProvider.locations.collect { location ->
+                    processLocation(location)
+                }
             }
         }
 
@@ -146,13 +212,19 @@ class TrackingService : Service() {
 
     private fun resumeTracking() {
         totalPausedMs += System.currentTimeMillis() - pauseStartMs
-        locationProvider.start()
-        sensorCollector.start()
-        locationCollectionJob = serviceScope.launch {
-            locationProvider.locations.collect { location ->
-                processLocation(location)
+
+        serviceScope.launch {
+            val accuracy = prefsRepository.trackingAccuracy.first()
+            locationProvider.start(accuracy)
+            sensorCollector.start()
+
+            locationCollectionJob = launch {
+                locationProvider.locations.collect { location ->
+                    processLocation(location)
+                }
             }
         }
+
         updateState(isPaused = false)
     }
 

@@ -1,6 +1,9 @@
 package com.traq.feature.settings.viewmodel;
 
 import com.traq.core.data.repository.UserPreferencesRepository;
+import com.traq.core.data.util.StorageCalculator;
+import com.traq.core.permissions.BatteryOptimizationHelper;
+import com.traq.core.permissions.PermissionManager;
 import dagger.internal.DaggerGenerated;
 import dagger.internal.Factory;
 import dagger.internal.QualifierMetadata;
@@ -27,21 +30,37 @@ import javax.inject.Provider;
 public final class SettingsViewModel_Factory implements Factory<SettingsViewModel> {
   private final Provider<UserPreferencesRepository> prefsProvider;
 
-  public SettingsViewModel_Factory(Provider<UserPreferencesRepository> prefsProvider) {
+  private final Provider<PermissionManager> permissionManagerProvider;
+
+  private final Provider<BatteryOptimizationHelper> batteryHelperProvider;
+
+  private final Provider<StorageCalculator> storageCalculatorProvider;
+
+  public SettingsViewModel_Factory(Provider<UserPreferencesRepository> prefsProvider,
+      Provider<PermissionManager> permissionManagerProvider,
+      Provider<BatteryOptimizationHelper> batteryHelperProvider,
+      Provider<StorageCalculator> storageCalculatorProvider) {
     this.prefsProvider = prefsProvider;
+    this.permissionManagerProvider = permissionManagerProvider;
+    this.batteryHelperProvider = batteryHelperProvider;
+    this.storageCalculatorProvider = storageCalculatorProvider;
   }
 
   @Override
   public SettingsViewModel get() {
-    return newInstance(prefsProvider.get());
+    return newInstance(prefsProvider.get(), permissionManagerProvider.get(), batteryHelperProvider.get(), storageCalculatorProvider.get());
   }
 
-  public static SettingsViewModel_Factory create(
-      Provider<UserPreferencesRepository> prefsProvider) {
-    return new SettingsViewModel_Factory(prefsProvider);
+  public static SettingsViewModel_Factory create(Provider<UserPreferencesRepository> prefsProvider,
+      Provider<PermissionManager> permissionManagerProvider,
+      Provider<BatteryOptimizationHelper> batteryHelperProvider,
+      Provider<StorageCalculator> storageCalculatorProvider) {
+    return new SettingsViewModel_Factory(prefsProvider, permissionManagerProvider, batteryHelperProvider, storageCalculatorProvider);
   }
 
-  public static SettingsViewModel newInstance(UserPreferencesRepository prefs) {
-    return new SettingsViewModel(prefs);
+  public static SettingsViewModel newInstance(UserPreferencesRepository prefs,
+      PermissionManager permissionManager, BatteryOptimizationHelper batteryHelper,
+      StorageCalculator storageCalculator) {
+    return new SettingsViewModel(prefs, permissionManager, batteryHelper, storageCalculator);
   }
 }

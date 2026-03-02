@@ -117,6 +117,18 @@ fun SettingsScreen(
                 }
             )
 
+            // Storage section
+            Text("Storage", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+            ListItem(
+                headlineContent = { Text("Trip Database") },
+                supportingContent = { Text(state.databaseSizeMb) }
+            )
+            ListItem(
+                headlineContent = { Text("Cache") },
+                supportingContent = { Text(state.cacheSizeMb) },
+                modifier = Modifier.clickable { viewModel.clearCache() }
+            )
+
             // About section
             Text("About", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
             ListItem(
