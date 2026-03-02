@@ -152,6 +152,6 @@ class MapLibreRenderer @Inject constructor(
     override fun getCachedRegions(): Flow<List<OfflineRegion>> = flowOf(emptyList())
 
     companion object {
-        const val STYLE_URL = "https://demotiles.maplibre.org/style.json"
+        const val STYLE_URL = "https://tiles.openfreemap.org/styles/liberty"
     }
 }

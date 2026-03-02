@@ -65,7 +65,10 @@ fun TraqNavGraph(
             TraqRoute.TripDetail.route,
             arguments = listOf(navArgument("tripId") { type = NavType.StringType })
         ) {
-            TripDetailScreen(onBack = { navController.popBackStack() })
+            TripDetailScreen(
+                    onBack = { navController.popBackStack() },
+                    mapRenderer = mapRenderer
+                )
         }
         composable(TraqRoute.Settings.route) {
             SettingsScreen(onBack = { navController.popBackStack() })

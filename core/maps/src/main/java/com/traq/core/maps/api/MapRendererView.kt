@@ -10,13 +10,15 @@ fun RenderMapView(
     cameraPosition: CameraPosition,
     polylines: List<RoutePolyline>,
     markers: List<MapMarker>,
-    onCameraMove: (CameraPosition) -> Unit
+    onCameraMove: (CameraPosition) -> Unit,
+    isInteractive: Boolean = true
 ) {
     renderer.MapView(
         modifier = modifier,
         cameraPosition = cameraPosition,
         polylines = polylines,
         markers = markers,
-        onCameraMove = onCameraMove
+        onCameraMove = onCameraMove,
+        isInteractive = isInteractive
     )
 }
