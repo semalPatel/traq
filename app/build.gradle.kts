@@ -17,9 +17,6 @@ android {
         versionCode = 1
         versionName = "1.0.0"
 
-        val mapsApiKey = project.findProperty("MAPS_API_KEY")?.toString() ?: ""
-        manifestPlaceholders["MAPS_API_KEY"] = mapsApiKey
-        buildConfigField("String", "MAPS_API_KEY", "\"$mapsApiKey\"")
     }
 
     buildTypes {
@@ -43,7 +40,6 @@ android {
 
     buildFeatures {
         compose = true
-        buildConfig = true
     }
 }
 

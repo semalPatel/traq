@@ -37,8 +37,6 @@ dependencies {
     implementation(libs.compose.ui)
     implementation(libs.compose.foundation)
     implementation(libs.compose.runtime)
-    implementation(libs.maps.compose)
-    implementation(libs.play.services.maps)
     implementation(libs.maplibre)
 
     implementation(libs.hilt.android)

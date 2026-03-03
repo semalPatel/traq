@@ -3,7 +3,6 @@ package com.traq.feature.settings.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.traq.core.common.model.ExportFormat
-import com.traq.core.common.model.MapRendererType
 import com.traq.core.common.model.TrackingAccuracy
 import com.traq.core.data.repository.UserPreferencesRepository
 import com.traq.core.data.util.StorageCalculator
@@ -36,14 +35,12 @@ class SettingsViewModel @Inject constructor(
             combine(
                 prefs.trackingAccuracy,
                 prefs.aiEnabled,
-                prefs.mapRenderer,
                 prefs.defaultExportFormat,
                 prefs.autoExportEnabled
-            ) { accuracy, ai, map, export, autoExport ->
+            ) { accuracy, ai, export, autoExport ->
                 SettingsUiState(
                     trackingAccuracy = accuracy,
                     aiEnabled = ai,
-                    mapRenderer = map,
                     defaultExportFormat = export,
                     autoExportEnabled = autoExport,
                     isBatteryOptimized = permissionManager.isBatteryOptimizationDisabled(),
@@ -60,10 +57,6 @@ class SettingsViewModel @Inject constructor(
 
     fun setAiEnabled(enabled: Boolean) {
         viewModelScope.launch { prefs.setAiEnabled(enabled) }
-    }
-
-    fun setMapRenderer(type: MapRendererType) {
-        viewModelScope.launch { prefs.setMapRenderer(type) }
     }
 
     fun setExportFormat(format: ExportFormat) {

@@ -9,9 +9,7 @@ lifecycle = "2.8.7"
 navigation = "2.8.5"
 coroutines = "1.9.0"
 datastore = "1.1.1"
-maps-compose = "6.4.1"
 play-services-location = "21.3.0"
-play-services-maps = "19.0.0"
 tensorflow-lite = "2.16.1"
 tensorflow-lite-support = "0.4.4"
 serialization = "1.7.3"
@@ -62,8 +60,6 @@ coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutin
 play-services-location = { group = "com.google.android.gms", name = "play-services-location", version.ref = "play-services-location" }
 
 # Maps
-maps-compose = { group = "com.google.maps.android", name = "maps-compose", version.ref = "maps-compose" }
-play-services-maps = { group = "com.google.android.gms", name = "play-services-maps", version.ref = "play-services-maps" }
 maplibre = { group = "org.maplibre.gl", name = "android-sdk", version.ref = "maplibre" }
 
 # ML

@@ -33,7 +33,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.traq.core.common.model.ExportFormat
-import com.traq.core.common.model.MapRendererType
 import com.traq.core.common.model.TrackingAccuracy
 import com.traq.feature.settings.viewmodel.SettingsViewModel
 
@@ -44,7 +43,6 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
-    var showMapRendererDialog by remember { mutableStateOf(false) }
     var showAccuracyDialog by remember { mutableStateOf(false) }
     var showExportFormatDialog by remember { mutableStateOf(false) }
 
@@ -84,12 +82,11 @@ fun SettingsScreen(
             // Maps section
             Text("Maps", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
             ListItem(
-                headlineContent = { Text("Map Renderer") },
-                supportingContent = { Text(state.mapRenderer.displayName()) },
-                modifier = Modifier.clickable { showMapRendererDialog = true }
+                headlineContent = { Text("Map Provider") },
+                supportingContent = { Text("MapLibre \u00b7 OpenStreetMap (free, no API key)") }
             )
             Text(
-                "Changing map renderer requires app restart",
+                "Powered by OpenFreeMap",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
@@ -136,17 +133,6 @@ fun SettingsScreen(
                 supportingContent = { Text("AI-powered GPS tracker") }
             )
         }
-    }
-
-    // Map Renderer Dialog
-    if (showMapRendererDialog) {
-        SingleChoiceDialog(
-            title = "Map Renderer",
-            options = MapRendererType.entries.map { it to it.displayName() },
-            selected = state.mapRenderer,
-            onSelect = { viewModel.setMapRenderer(it); showMapRendererDialog = false },
-            onDismiss = { showMapRendererDialog = false }
-        )
     }
 
     // Accuracy Dialog
@@ -203,11 +189,6 @@ private fun <T> SingleChoiceDialog(
             TextButton(onClick = onDismiss) { Text("Cancel") }
         }
     )
-}
-
-private fun MapRendererType.displayName(): String = when (this) {
-    MapRendererType.GOOGLE -> "Google Maps"
-    MapRendererType.MAPLIBRE -> "MapLibre (offline)"
 }
 
 private fun TrackingAccuracy.displayName(): String = when (this) {

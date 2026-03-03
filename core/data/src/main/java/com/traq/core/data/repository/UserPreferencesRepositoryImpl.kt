@@ -17,7 +17,7 @@ class UserPreferencesRepositoryImpl @Inject constructor(
 ) : UserPreferencesRepository {
 
     override val mapRenderer: Flow<MapRendererType> = dataStore.data.map { prefs ->
-        MapRendererType.valueOf(prefs[MAP_RENDERER_KEY] ?: MapRendererType.GOOGLE.name)
+        MapRendererType.valueOf(prefs[MAP_RENDERER_KEY] ?: MapRendererType.MAPLIBRE.name)
     }
 
     override val trackingAccuracy: Flow<TrackingAccuracy> = dataStore.data.map { prefs ->
