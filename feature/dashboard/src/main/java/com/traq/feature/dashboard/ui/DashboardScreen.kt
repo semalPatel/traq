@@ -1,6 +1,7 @@
 package com.traq.feature.dashboard.ui
 
 import android.Manifest
+import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
@@ -59,11 +60,18 @@ fun DashboardScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { _ -> }
+
     val locationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
         val fineGranted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true
         if (fineGranted) {
+            if (Build.VERSION.SDK_INT >= 33) {
+                notificationPermissionLauncher.launch("android.permission.POST_NOTIFICATIONS")
+            }
             val tripId = viewModel.startNewTrip()
             onStartTrip(tripId)
         } else {
@@ -95,6 +103,9 @@ fun DashboardScreen(
                     if (hasActiveTrip) {
                         state.activeTripState?.tripId?.let { onStartTrip(it) }
                     } else if (viewModel.hasLocationPermission()) {
+                        if (Build.VERSION.SDK_INT >= 33) {
+                            notificationPermissionLauncher.launch("android.permission.POST_NOTIFICATIONS")
+                        }
                         val tripId = viewModel.startNewTrip()
                         onStartTrip(tripId)
                     } else {
@@ -128,7 +139,7 @@ fun DashboardScreen(
                 item {
                     Card(
                         modifier = Modifier.fillMaxWidth().clickable {
-                            trackingState.tripId?.let { onTripClick(it) }
+                            trackingState.tripId?.let { onStartTrip(it) }
                         },
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
                     ) {
