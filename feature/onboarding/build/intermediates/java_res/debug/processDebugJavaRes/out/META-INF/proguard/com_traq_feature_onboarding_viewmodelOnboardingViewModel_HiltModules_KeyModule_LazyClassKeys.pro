@@ -1,2 +1,0 @@
--keep,allowobfuscation,allowshrinking class com.traq.feature.onboarding.viewmodel.OnboardingViewModel
--keep,allowobfuscation,allowshrinking class com.traq.feature.onboarding.viewmodel.OnboardingViewModel

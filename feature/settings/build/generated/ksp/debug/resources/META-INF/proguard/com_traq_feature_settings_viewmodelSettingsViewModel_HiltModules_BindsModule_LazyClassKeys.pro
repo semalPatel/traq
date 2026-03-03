@@ -1,1 +1,0 @@
--keep,allowobfuscation,allowshrinking class com.traq.feature.settings.viewmodel.SettingsViewModel

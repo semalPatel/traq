@@ -1,2 +1,0 @@
--keep,allowobfuscation,allowshrinking class com.traq.feature.tracking.viewmodel.TrackingViewModel
--keep,allowobfuscation,allowshrinking class com.traq.feature.tracking.viewmodel.TrackingViewModel
