@@ -15,7 +15,9 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.suspendCancellableCoroutine
 import javax.inject.Inject
+import kotlin.coroutines.resume
 
 class LocationProvider @Inject constructor(
     @ApplicationContext private val context: Context
@@ -74,5 +76,12 @@ class LocationProvider @Inject constructor(
     fun stop() {
         callback?.let { fusedClient.removeLocationUpdates(it) }
         callback = null
+    }
+
+    @SuppressLint("MissingPermission")
+    suspend fun getLastLocation(): Location? = suspendCancellableCoroutine { cont ->
+        fusedClient.lastLocation
+            .addOnSuccessListener { cont.resume(it) }
+            .addOnFailureListener { cont.resume(null) }
     }
 }

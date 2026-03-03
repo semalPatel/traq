@@ -30,6 +30,14 @@ class TrackingViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
+            val lastLocation = trackingController.getLastLocation()
+            if (lastLocation != null) {
+                _uiState.update {
+                    it.copy(cameraPosition = CameraPosition(lastLocation.latitude, lastLocation.longitude, 16f, 0f))
+                }
+            }
+        }
+        viewModelScope.launch {
             trackingController.trackingState.collect { state ->
                 _uiState.update { it.copy(trackingState = state) }
             }

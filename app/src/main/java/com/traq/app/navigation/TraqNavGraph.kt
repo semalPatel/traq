@@ -11,6 +11,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.traq.core.maps.api.CameraPosition
 import com.traq.core.maps.api.LatLng
+import com.traq.core.maps.api.MapMarker
 import com.traq.core.maps.api.MapRenderer
 import com.traq.core.maps.api.RenderMapView
 import com.traq.core.maps.api.RoutePolyline
@@ -93,6 +94,10 @@ private fun TrackingMapContent(
     routePoints: List<LatLng>
 ) {
     if (mapRenderer != null) {
+        val currentLocationMarker = routePoints.lastOrNull()?.let { pos ->
+            listOf(MapMarker(position = pos, title = "Current Location"))
+        } ?: emptyList()
+
         RenderMapView(
             renderer = mapRenderer,
             modifier = modifier,
@@ -104,7 +109,7 @@ private fun TrackingMapContent(
                     widthDp = 5f
                 )
             ) else emptyList(),
-            markers = emptyList(),
+            markers = currentLocationMarker,
             onCameraMove = {}
         )
     }

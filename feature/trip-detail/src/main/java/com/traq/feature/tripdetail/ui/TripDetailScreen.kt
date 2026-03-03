@@ -103,6 +103,14 @@ fun TripDetailScreen(
         ) {
             // Route map
             if (mapRenderer != null && state.mapBounds != null) {
+                val bounds = state.mapBounds!!
+                val latSpan = bounds.northEast.latitude - bounds.southWest.latitude
+                val lngSpan = bounds.northEast.longitude - bounds.southWest.longitude
+                val maxSpan = maxOf(latSpan, lngSpan).coerceAtLeast(0.001)
+                val zoom = (Math.log(360.0 / maxSpan) / Math.log(2.0))
+                    .toFloat()
+                    .coerceIn(2f, 18f) - 1f
+
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -117,9 +125,9 @@ fun TripDetailScreen(
                             .fillMaxSize()
                             .clip(MaterialTheme.shapes.large),
                         cameraPosition = CameraPosition(
-                            state.mapBounds!!.center.latitude,
-                            state.mapBounds!!.center.longitude,
-                            14f, 0f
+                            bounds.center.latitude,
+                            bounds.center.longitude,
+                            zoom, 0f
                         ),
                         polylines = state.routePolylines,
                         markers = emptyList(),

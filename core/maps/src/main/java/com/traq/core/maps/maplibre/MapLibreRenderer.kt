@@ -24,16 +24,22 @@ import org.maplibre.android.camera.CameraUpdateFactory
 import org.maplibre.android.geometry.LatLng
 import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.maps.MapView
+import org.maplibre.android.style.layers.CircleLayer
 import org.maplibre.android.style.layers.LineLayer
 import org.maplibre.android.style.layers.Property
 import org.maplibre.android.style.layers.PropertyFactory
 import org.maplibre.android.style.sources.GeoJsonSource
+import org.maplibre.geojson.Feature
+import org.maplibre.geojson.FeatureCollection
 import org.maplibre.geojson.LineString
 import org.maplibre.geojson.Point
 import javax.inject.Inject
 
 private const val ROUTE_SOURCE_ID = "traq-route-source"
 private const val ROUTE_LAYER_ID = "traq-route-layer"
+private const val MARKER_SOURCE_ID = "traq-marker-source"
+private const val MARKER_LAYER_ID = "traq-marker-layer"
+private const val MARKER_BORDER_LAYER_ID = "traq-marker-border-layer"
 
 class MapLibreRenderer @Inject constructor(
     @ApplicationContext private val context: Context
@@ -112,6 +118,40 @@ class MapLibreRenderer @Inject constructor(
                             }
                         )
                     }
+                }
+
+                // Render markers (current location dot)
+                style.removeLayer(MARKER_BORDER_LAYER_ID)
+                style.removeLayer(MARKER_LAYER_ID)
+                style.removeSource(MARKER_SOURCE_ID)
+
+                if (markers.isNotEmpty()) {
+                    val markerPoints = markers.map { marker ->
+                        Point.fromLngLat(marker.position.longitude, marker.position.latitude)
+                    }
+                    val featureCollection = FeatureCollection.fromFeatures(
+                        markerPoints.map { Feature.fromGeometry(it) }
+                    )
+                    style.addSource(GeoJsonSource(MARKER_SOURCE_ID, featureCollection))
+
+                    style.addLayer(
+                        CircleLayer(MARKER_BORDER_LAYER_ID, MARKER_SOURCE_ID).apply {
+                            setProperties(
+                                PropertyFactory.circleRadius(10f),
+                                PropertyFactory.circleColor(android.graphics.Color.WHITE),
+                                PropertyFactory.circleStrokeWidth(0f)
+                            )
+                        }
+                    )
+                    style.addLayer(
+                        CircleLayer(MARKER_LAYER_ID, MARKER_SOURCE_ID).apply {
+                            setProperties(
+                                PropertyFactory.circleRadius(7f),
+                                PropertyFactory.circleColor(android.graphics.Color.parseColor("#2196F3")),
+                                PropertyFactory.circleStrokeWidth(0f)
+                            )
+                        }
+                    )
                 }
             }
         )
