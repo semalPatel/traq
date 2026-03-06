@@ -33,7 +33,10 @@ class TrackingViewModel @Inject constructor(
             val lastLocation = trackingController.getLastLocation()
             if (lastLocation != null) {
                 _uiState.update {
-                    it.copy(cameraPosition = CameraPosition(lastLocation.latitude, lastLocation.longitude, 16f, 0f))
+                    it.copy(
+                        cameraPosition = CameraPosition(lastLocation.latitude, lastLocation.longitude, 16f, 0f),
+                        isMapReady = true
+                    )
                 }
             }
         }
@@ -50,12 +53,17 @@ class TrackingViewModel @Inject constructor(
                     it.copy(
                         routePoints = latLngs,
                         currentPosition = current,
+                        isMapReady = true,
                         cameraPosition = current?.let { pos ->
                             CameraPosition(pos.latitude, pos.longitude, 16f, 0f)
                         } ?: it.cameraPosition
                     )
                 }
             }
+        }
+        viewModelScope.launch {
+            kotlinx.coroutines.delay(5000)
+            _uiState.update { it.copy(isMapReady = true) }
         }
     }
 

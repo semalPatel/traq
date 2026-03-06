@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -37,12 +38,14 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.traq.core.data.model.Trip
 import com.traq.core.ui.component.LoadingIndicator
 import com.traq.core.ui.component.MetricCard
+import com.traq.core.ui.component.TransportModeIcon
 import com.traq.core.ui.util.FormatUtils
 import com.traq.feature.dashboard.viewmodel.DashboardViewModel
 import kotlinx.coroutines.launch
@@ -144,12 +147,36 @@ fun DashboardScreen(
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
-                            Text("Active Trip", style = MaterialTheme.typography.titleMedium)
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("Active Trip", style = MaterialTheme.typography.titleMedium)
+                                trackingState.currentMode?.let { mode ->
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        TransportModeIcon(mode = mode, size = 18.dp)
+                                        Spacer(Modifier.width(4.dp))
+                                        Text(
+                                            mode.name.lowercase().replaceFirstChar { it.uppercase() },
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                                        )
+                                    }
+                                }
+                            }
                             Spacer(Modifier.height(8.dp))
                             Text(
                                 "${FormatUtils.formatDistance(trackingState.distanceMeters)} · ${FormatUtils.formatDuration(trackingState.elapsedMs)}",
                                 style = MaterialTheme.typography.bodyLarge
                             )
+                            trackingState.currentSpeedMps?.let { speed ->
+                                Text(
+                                    FormatUtils.formatSpeed(speed),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                                )
+                            }
                         }
                     }
                 }

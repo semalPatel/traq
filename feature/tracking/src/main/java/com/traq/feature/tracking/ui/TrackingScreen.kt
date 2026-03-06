@@ -13,6 +13,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.BottomSheetScaffold
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -109,11 +110,24 @@ fun TrackingScreen(
         }
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
-            mapContent(
-                Modifier.fillMaxSize(),
-                state.cameraPosition,
-                state.routePoints
-            )
+            if (state.isMapReady) {
+                mapContent(
+                    Modifier.fillMaxSize(),
+                    state.cameraPosition,
+                    state.routePoints
+                )
+            } else {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        CircularProgressIndicator()
+                        Spacer(Modifier.height(8.dp))
+                        Text("Getting your location...", style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
+            }
         }
     }
 

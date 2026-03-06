@@ -10,5 +10,6 @@ data class TrackingUiState(
     val routePoints: List<LatLng> = emptyList(),
     val currentPosition: LatLng? = null,
     val cameraPosition: CameraPosition = CameraPosition(0.0, 0.0, 15f, 0f),
-    val showStopConfirmation: Boolean = false
+    val showStopConfirmation: Boolean = false,
+    val isMapReady: Boolean = false
 )
