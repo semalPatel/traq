@@ -68,7 +68,31 @@ class TripDetailViewModel @Inject constructor(
                     mapBounds = bounds,
                     isLoading = false
                 )
-            }.collect { _uiState.value = it }
+            }.collect { newState ->
+                _uiState.update { old ->
+                    newState.copy(
+                        showExportSheet = old.showExportSheet,
+                        showRenameDialog = old.showRenameDialog
+                    )
+                }
+            }
+        }
+    }
+
+    fun showRenameDialog() {
+        _uiState.update { it.copy(showRenameDialog = true) }
+    }
+
+    fun dismissRenameDialog() {
+        _uiState.update { it.copy(showRenameDialog = false) }
+    }
+
+    fun renameTrip(name: String) {
+        viewModelScope.launch {
+            if (name.isNotBlank()) {
+                tripRepository.renameTrip(tripId, name.trim())
+            }
+            _uiState.update { it.copy(showRenameDialog = false) }
         }
     }
 

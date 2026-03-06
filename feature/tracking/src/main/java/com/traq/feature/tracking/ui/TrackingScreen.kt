@@ -61,7 +61,13 @@ fun TrackingScreen(
     }
 
     LaunchedEffect(state.trackingState.isTracking, hasSeenTracking) {
-        if (hasSeenTracking && !state.trackingState.isTracking) {
+        if (hasSeenTracking && !state.trackingState.isTracking && !state.showNamingDialog && !state.tripCompleted) {
+            viewModel.onTripStopped()
+        }
+    }
+
+    LaunchedEffect(state.tripCompleted) {
+        if (state.tripCompleted) {
             onTripCompleted(state.tripId)
         }
     }
@@ -145,6 +151,41 @@ fun TrackingScreen(
             },
             dismissButton = {
                 TextButton(onClick = { viewModel.onDismissStop() }) { Text("Cancel") }
+            }
+        )
+    }
+
+    if (state.showNamingDialog) {
+        var tripName by remember { mutableStateOf("") }
+        AlertDialog(
+            onDismissRequest = { viewModel.onSkipNaming() },
+            title = { Text("Name Your Trip") },
+            text = {
+                Column {
+                    Text(
+                        "Give your trip a name to find it easily later.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    OutlinedTextField(
+                        value = tripName,
+                        onValueChange = { tripName = it },
+                        placeholder = { Text("e.g., Morning commute, Park run...") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { viewModel.onSaveTripName(tripName) }) {
+                    Text("Save")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.onSkipNaming() }) {
+                    Text("Skip")
+                }
             }
         )
     }

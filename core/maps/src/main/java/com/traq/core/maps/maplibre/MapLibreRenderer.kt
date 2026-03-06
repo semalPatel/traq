@@ -5,8 +5,8 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -59,9 +59,12 @@ class MapLibreRenderer @Inject constructor(
         val isDarkTheme = isSystemInDarkTheme()
         val styleUrl = if (isDarkTheme) STYLE_URL_DARK else STYLE_URL_LIGHT
 
-        key(isDarkTheme) {
         var mapRef by remember { mutableStateOf<MapLibreMap?>(null) }
         var mapViewRef by remember { mutableStateOf<MapView?>(null) }
+
+        LaunchedEffect(styleUrl) {
+            mapRef?.setStyle(styleUrl)
+        }
 
         AndroidView(
             modifier = modifier.fillMaxSize(),
@@ -167,7 +170,6 @@ class MapLibreRenderer @Inject constructor(
                 mapViewRef?.onDestroy()
             }
         }
-        } // key(isDarkTheme)
     }
 
     @Composable

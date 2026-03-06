@@ -12,5 +12,6 @@ data class TripDetailUiState(
     val routePolylines: List<RoutePolyline> = emptyList(),
     val mapBounds: LatLngBounds? = null,
     val showExportSheet: Boolean = false,
+    val showRenameDialog: Boolean = false,
     val isLoading: Boolean = true
 )
