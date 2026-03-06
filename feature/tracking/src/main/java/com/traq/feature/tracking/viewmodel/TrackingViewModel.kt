@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.traq.core.data.repository.TrackPointRepository
+import com.traq.core.data.repository.TripRepository
 import com.traq.core.location.controller.TrackingController
 import com.traq.core.maps.api.CameraPosition
 import com.traq.core.maps.api.LatLng
@@ -20,7 +21,8 @@ import javax.inject.Inject
 class TrackingViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val trackingController: TrackingController,
-    private val trackPointRepository: TrackPointRepository
+    private val trackPointRepository: TrackPointRepository,
+    private val tripRepository: TripRepository
 ) : ViewModel() {
 
     private val tripId: String = savedStateHandle["tripId"] ?: ""
@@ -74,5 +76,22 @@ class TrackingViewModel @Inject constructor(
     fun onConfirmStop() {
         trackingController.stopTrip()
         _uiState.update { it.copy(showStopConfirmation = false) }
+    }
+
+    fun onTripStopped() {
+        _uiState.update { it.copy(showNamingDialog = true) }
+    }
+
+    fun onSaveTripName(name: String) {
+        viewModelScope.launch {
+            if (name.isNotBlank()) {
+                tripRepository.renameTrip(tripId, name.trim())
+            }
+            _uiState.update { it.copy(showNamingDialog = false, tripCompleted = true) }
+        }
+    }
+
+    fun onSkipNaming() {
+        _uiState.update { it.copy(showNamingDialog = false, tripCompleted = true) }
     }
 }

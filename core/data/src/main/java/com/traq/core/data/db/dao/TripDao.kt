@@ -25,6 +25,9 @@ interface TripDao {
     @Update
     suspend fun update(trip: TripEntity)
 
+    @Query("UPDATE trips SET name = :name WHERE id = :id")
+    suspend fun updateName(id: String, name: String)
+
     @Query("DELETE FROM trips WHERE id = :id")
     suspend fun deleteById(id: String)
 

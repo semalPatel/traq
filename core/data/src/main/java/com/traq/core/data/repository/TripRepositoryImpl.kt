@@ -52,6 +52,10 @@ class TripRepositoryImpl @Inject constructor(
             )
         }
 
+    override suspend fun renameTrip(id: String, name: String) = withContext(Dispatchers.IO) {
+        tripDao.updateName(id, name)
+    }
+
     override suspend fun deleteTrip(id: String) = withContext(Dispatchers.IO) {
         tripDao.deleteById(id)
     }

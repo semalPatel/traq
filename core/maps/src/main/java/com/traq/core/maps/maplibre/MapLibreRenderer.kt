@@ -1,10 +1,12 @@
 package com.traq.core.maps.maplibre
 
 import android.content.Context
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -54,6 +56,10 @@ class MapLibreRenderer @Inject constructor(
         onCameraMove: (CameraPosition) -> Unit,
         isInteractive: Boolean
     ) {
+        val isDarkTheme = isSystemInDarkTheme()
+        val styleUrl = if (isDarkTheme) STYLE_URL_DARK else STYLE_URL_LIGHT
+
+        key(isDarkTheme) {
         var mapRef by remember { mutableStateOf<MapLibreMap?>(null) }
         var mapViewRef by remember { mutableStateOf<MapView?>(null) }
 
@@ -64,7 +70,7 @@ class MapLibreRenderer @Inject constructor(
                     mv.onCreate(null)
                     mv.getMapAsync { map ->
                         mapRef = map
-                        map.setStyle(STYLE_URL) {
+                        map.setStyle(styleUrl) {
                             map.moveCamera(
                                 CameraUpdateFactory.newCameraPosition(
                                     org.maplibre.android.camera.CameraPosition.Builder()
@@ -161,6 +167,7 @@ class MapLibreRenderer @Inject constructor(
                 mapViewRef?.onDestroy()
             }
         }
+        } // key(isDarkTheme)
     }
 
     @Composable
@@ -192,6 +199,7 @@ class MapLibreRenderer @Inject constructor(
     override fun getCachedRegions(): Flow<List<OfflineRegion>> = flowOf(emptyList())
 
     companion object {
-        const val STYLE_URL = "https://tiles.openfreemap.org/styles/liberty"
+        const val STYLE_URL_LIGHT = "https://tiles.openfreemap.org/styles/liberty"
+        const val STYLE_URL_DARK = "https://tiles.openfreemap.org/styles/dark"
     }
 }
