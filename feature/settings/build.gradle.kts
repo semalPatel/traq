@@ -32,6 +32,7 @@ dependencies {
     implementation(project(":core:common"))
     implementation(project(":core:ui"))
     implementation(project(":core:data"))
+    implementation(project(":core:location"))
     implementation(project(":core:maps"))
     implementation(project(":core:permissions"))
 

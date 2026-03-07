@@ -1,6 +1,7 @@
 package com.traq.feature.settings.ui
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -11,6 +12,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -91,6 +93,71 @@ fun SettingsScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
             )
+            ListItem(
+                headlineContent = { Text("Offline Maps") },
+                supportingContent = {
+                    Text(
+                        if (state.isOfflineMapsSupported) {
+                            "Download the area around your current location for remote trips."
+                        } else {
+                            "Offline maps are not supported by the current renderer."
+                        }
+                    )
+                }
+            )
+            if (state.isOfflineMapsSupported) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Button(
+                        onClick = { viewModel.downloadOfflineRegionAroundLastLocation() },
+                        enabled = !state.isDownloadingOfflineRegion
+                    ) {
+                        Text(if (state.isDownloadingOfflineRegion) "Downloading..." else "Download Current Area")
+                    }
+                }
+                ListItem(
+                    headlineContent = { Text("Offline Map Storage") },
+                    supportingContent = { Text(state.offlineMapsSizeMb) }
+                )
+                state.offlineDownloadPercent?.let { progress ->
+                    ListItem(
+                        headlineContent = { Text("Download Progress") },
+                        supportingContent = { Text("$progress%") }
+                    )
+                }
+                state.offlineStatusMessage?.let { message ->
+                    Text(
+                        text = message,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+                    )
+                }
+                if (state.offlineRegions.isEmpty()) {
+                    Text(
+                        "No offline map regions downloaded yet.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                    )
+                } else {
+                    state.offlineRegions.forEach { region ->
+                        ListItem(
+                            headlineContent = { Text(region.name) },
+                            supportingContent = { Text("${formatSize(region.sizeBytes)} · saved ${formatTimestamp(region.createdAt)}") },
+                            trailingContent = {
+                                TextButton(onClick = { viewModel.deleteOfflineRegion(region.id) }) {
+                                    Text("Delete")
+                                }
+                            }
+                        )
+                    }
+                }
+            }
 
             // Battery section
             Text("Battery", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
@@ -202,4 +269,17 @@ private fun ExportFormat.displayName(): String = when (this) {
     ExportFormat.GPX -> "GPX (universal)"
     ExportFormat.GEOJSON -> "GeoJSON (web)"
     ExportFormat.KML -> "KML (Google Earth)"
+}
+
+private fun formatSize(bytes: Long): String = when {
+    bytes < 1024 -> "$bytes B"
+    bytes < 1024 * 1024 -> "%.1f KB".format(bytes / 1024.0)
+    else -> "%.1f MB".format(bytes / (1024.0 * 1024.0))
+}
+
+private fun formatTimestamp(timestampMs: Long): String {
+    return java.time.Instant.ofEpochMilli(timestampMs)
+        .atZone(java.time.ZoneId.systemDefault())
+        .toLocalDate()
+        .toString()
 }

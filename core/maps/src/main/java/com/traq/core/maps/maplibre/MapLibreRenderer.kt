@@ -1,11 +1,9 @@
 package com.traq.core.maps.maplibre
 
 import android.content.Context
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -18,14 +16,14 @@ import com.traq.core.maps.api.LatLngBounds
 import com.traq.core.maps.api.MapMarker
 import com.traq.core.maps.api.MapRenderer
 import com.traq.core.maps.api.OfflineRegion
+import com.traq.core.maps.api.RenderMapView
 import com.traq.core.maps.api.RoutePolyline
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flowOf
 import org.maplibre.android.camera.CameraUpdateFactory
 import org.maplibre.android.geometry.LatLng
 import org.maplibre.android.maps.MapLibreMap
-import org.maplibre.android.maps.MapView
+import org.maplibre.android.maps.MapView as MapLibreMapView
 import org.maplibre.android.style.layers.CircleLayer
 import org.maplibre.android.style.layers.LineLayer
 import org.maplibre.android.style.layers.Property
@@ -44,9 +42,9 @@ private const val MARKER_LAYER_ID = "traq-marker-layer"
 private const val MARKER_BORDER_LAYER_ID = "traq-marker-border-layer"
 
 class MapLibreRenderer @Inject constructor(
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val offlineRegionManager: MapLibreOfflineRegionManager
 ) : MapRenderer {
-
     @Composable
     override fun MapView(
         modifier: Modifier,
@@ -56,24 +54,17 @@ class MapLibreRenderer @Inject constructor(
         onCameraMove: (CameraPosition) -> Unit,
         isInteractive: Boolean
     ) {
-        val isDarkTheme = isSystemInDarkTheme()
-        val styleUrl = if (isDarkTheme) STYLE_URL_DARK else STYLE_URL_LIGHT
-
         var mapRef by remember { mutableStateOf<MapLibreMap?>(null) }
-        var mapViewRef by remember { mutableStateOf<MapView?>(null) }
-
-        LaunchedEffect(styleUrl) {
-            mapRef?.setStyle(styleUrl)
-        }
+        var mapViewRef by remember { mutableStateOf<MapLibreMapView?>(null) }
 
         AndroidView(
             modifier = modifier.fillMaxSize(),
             factory = { ctx ->
-                MapView(ctx).also { mv ->
+                MapLibreMapView(ctx).also { mv ->
                     mv.onCreate(null)
                     mv.getMapAsync { map ->
                         mapRef = map
-                        map.setStyle(styleUrl) {
+                        map.setStyle(STYLE_URL) {
                             map.moveCamera(
                                 CameraUpdateFactory.newCameraPosition(
                                     org.maplibre.android.camera.CameraPosition.Builder()
@@ -178,7 +169,8 @@ class MapLibreRenderer @Inject constructor(
         bounds: LatLngBounds,
         polylines: List<RoutePolyline>
     ) {
-        MapView(
+        RenderMapView(
+            renderer = this,
             modifier = modifier,
             cameraPosition = CameraPosition(bounds.center.latitude, bounds.center.longitude, 12f, 0f),
             polylines = polylines,
@@ -192,16 +184,15 @@ class MapLibreRenderer @Inject constructor(
 
     override suspend fun downloadRegion(
         name: String, bounds: LatLngBounds, zoomRange: IntRange
-    ): Flow<DownloadProgress> {
-        return flowOf(DownloadProgress(0, 0, 0f, false))
-    }
+    ): Flow<DownloadProgress> = offlineRegionManager.downloadRegion(name, bounds, zoomRange)
 
-    override suspend fun deleteRegion(regionId: String) {}
+    override suspend fun deleteRegion(regionId: String) = offlineRegionManager.deleteRegion(regionId)
 
-    override fun getCachedRegions(): Flow<List<OfflineRegion>> = flowOf(emptyList())
+    override fun getCachedRegions(): Flow<List<OfflineRegion>> = offlineRegionManager.getCachedRegions()
 
     companion object {
-        const val STYLE_URL_LIGHT = "https://tiles.openfreemap.org/styles/liberty"
-        const val STYLE_URL_DARK = "https://tiles.openfreemap.org/styles/dark"
+        const val STYLE_URL = "https://tiles.openfreemap.org/styles/liberty"
+        const val DEFAULT_OFFLINE_MIN_ZOOM = 8
+        const val DEFAULT_OFFLINE_MAX_ZOOM = 16
     }
 }
