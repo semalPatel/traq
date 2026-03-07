@@ -11,9 +11,12 @@ class WakeLockManager @Inject constructor(
     private var wakeLock: PowerManager.WakeLock? = null
 
     fun acquire() {
+        if (wakeLock?.isHeld == true) return
         val pm = context.getSystemService(Context.POWER_SERVICE) as PowerManager
-        wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "traq:tracking")
-        wakeLock?.acquire(60 * 60 * 1000L)
+        wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "traq:tracking").apply {
+            setReferenceCounted(false)
+            acquire()
+        }
     }
 
     fun release() {

@@ -7,6 +7,7 @@ import android.location.Location
 import android.os.Binder
 import android.os.Build
 import android.os.IBinder
+import android.util.Log
 import androidx.core.app.ServiceCompat
 import com.traq.core.ai.classification.TransportClassifier
 import com.traq.core.ai.filter.GpsProcessor
@@ -96,6 +97,7 @@ class TrackingService : Service() {
                     serviceScope.launch {
                         val activeTrip = tripRepository.getActiveTrip()
                         if (activeTrip != null) {
+                            Log.i(TAG, "Recovering active trip ${activeTrip.id}")
                             recoverTrip(activeTrip.id)
                         } else {
                             stopSelf()
@@ -157,14 +159,6 @@ class TrackingService : Service() {
 
     private fun recoverTrip(tripId: String) {
         currentTripId = tripId
-        startTimeMs = System.currentTimeMillis()
-        totalPausedMs = 0L
-        totalDistanceMeters = 0.0
-        totalAscentMeters = 0.0
-        totalDescentMeters = 0.0
-        maxSpeedMps = 0f
-        pointCount = 0
-        lastRecordedPoint = null
 
         notificationManager.createNotificationChannel()
         val notification = notificationManager.buildNotification(TrackingState.IDLE)
@@ -181,6 +175,7 @@ class TrackingService : Service() {
         wakeLockManager.acquire()
 
         serviceScope.launch {
+            restorePersistedState(tripId)
             val accuracy = prefsRepository.trackingAccuracy.first()
             locationProvider.start(accuracy)
             sensorCollector.start()
@@ -200,6 +195,44 @@ class TrackingService : Service() {
         }
 
         updateState()
+    }
+
+    private suspend fun restorePersistedState(tripId: String) {
+        val trip = tripRepository.getTripFlow(tripId).first() ?: return
+        val points = trackPointRepository.getTrackPointsFlow(tripId).first()
+
+        startTimeMs = trip.startTime.toEpochMilli()
+        totalPausedMs = 0L
+        totalDistanceMeters = 0.0
+        totalAscentMeters = 0.0
+        totalDescentMeters = 0.0
+        maxSpeedMps = 0f
+        pointCount = 0
+        lastRecordedPoint = null
+
+        points.forEach { point ->
+            lastRecordedPoint?.let { prev ->
+                totalDistanceMeters += haversineDistance(
+                    prev.latitude,
+                    prev.longitude,
+                    point.latitude,
+                    point.longitude
+                )
+                val previousAltitude = prev.altitude
+                val currentAltitude = point.altitude
+                if (previousAltitude != null && currentAltitude != null) {
+                    val elevDiff = currentAltitude - previousAltitude
+                    if (elevDiff > 0) totalAscentMeters += elevDiff
+                    else totalDescentMeters += kotlin.math.abs(elevDiff)
+                }
+            }
+            point.speed?.let { if (it > maxSpeedMps) maxSpeedMps = it }
+            pointCount++
+            lastRecordedPoint = point
+        }
+
+        _currentLocation.value = lastRecordedPoint
+        Log.i(TAG, "Recovered trip $tripId with $pointCount recorded points")
     }
 
     private fun pauseTracking() {
@@ -342,11 +375,15 @@ class TrackingService : Service() {
     }
 
     override fun onDestroy() {
+        locationProvider.stop()
+        sensorCollector.stop()
+        wakeLockManager.release()
         serviceScope.cancel()
         super.onDestroy()
     }
 
     companion object {
+        private const val TAG = "TrackingService"
         const val ACTION_START = "com.traq.action.START"
         const val ACTION_PAUSE = "com.traq.action.PAUSE"
         const val ACTION_RESUME = "com.traq.action.RESUME"
