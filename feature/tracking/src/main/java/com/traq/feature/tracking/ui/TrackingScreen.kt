@@ -95,6 +95,25 @@ fun TrackingScreen(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                if (state.trackingState.isLocationStale) {
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        text = if (state.trackingState.isUsingEstimatedLocation) {
+                            "GPS signal is weak. Traq is estimating your position."
+                        } else {
+                            "Waiting for a fresh GPS fix..."
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                    state.trackingState.lastLocationAgeMs?.let { ageMs ->
+                        Text(
+                            text = "Last real GPS update ${ageMs / 1000}s ago",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
                 Spacer(Modifier.height(12.dp))
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     if (state.trackingState.isPaused) {

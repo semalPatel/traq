@@ -12,7 +12,10 @@ data class TrackingState(
     val pointsRecorded: Int = 0,
     val batteryPercent: Int = 100,
     val currentMode: TransportMode? = null,
-    val samplingIntervalMs: Long = 3000
+    val samplingIntervalMs: Long = 3000,
+    val isLocationStale: Boolean = false,
+    val lastLocationAgeMs: Long? = null,
+    val isUsingEstimatedLocation: Boolean = false
 ) {
     companion object {
         val IDLE = TrackingState()

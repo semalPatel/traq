@@ -10,6 +10,7 @@ import android.os.IBinder
 import android.util.Log
 import androidx.core.app.ServiceCompat
 import com.traq.core.ai.classification.TransportClassifier
+import com.traq.core.ai.deadreckoning.DeadReckoningEngine
 import com.traq.core.ai.filter.GpsProcessor
 import com.traq.core.ai.lifecycle.TripLifecycleManager
 import com.traq.core.ai.sampling.AdaptiveSampler
@@ -54,6 +55,7 @@ class TrackingService : Service() {
     @Inject lateinit var gpsProcessor: GpsProcessor
     @Inject lateinit var adaptiveSampler: AdaptiveSampler
     @Inject lateinit var transportClassifier: TransportClassifier
+    @Inject lateinit var deadReckoningEngine: DeadReckoningEngine
     @Inject lateinit var tripLifecycleManager: TripLifecycleManager
     @Inject lateinit var prefsRepository: UserPreferencesRepository
 
@@ -73,6 +75,8 @@ class TrackingService : Service() {
     private var maxSpeedMps: Float = 0f
     private var pointCount: Int = 0
     private var currentSamplingIntervalMs: Long = 3000L
+    private var lastRawLocationAtMs: Long = 0L
+    private var lastEstimatedLocationAtMs: Long = 0L
 
     private val _trackingState = MutableStateFlow(TrackingState.IDLE)
     val trackingState: StateFlow<TrackingState> = _trackingState.asStateFlow()
@@ -120,6 +124,8 @@ class TrackingService : Service() {
         pointCount = 0
         currentSamplingIntervalMs = 3000L
         lastRecordedPoint = null
+        lastRawLocationAtMs = 0L
+        lastEstimatedLocationAtMs = 0L
 
         notificationManager.createNotificationChannel()
         val notification = notificationManager.buildNotification(TrackingState.IDLE)
@@ -150,6 +156,7 @@ class TrackingService : Service() {
         timerJob = serviceScope.launch {
             while (true) {
                 delay(1000)
+                maybeEstimateLocation()
                 updateState()
             }
         }
@@ -190,6 +197,7 @@ class TrackingService : Service() {
         timerJob = serviceScope.launch {
             while (true) {
                 delay(1000)
+                maybeEstimateLocation()
                 updateState()
             }
         }
@@ -232,6 +240,13 @@ class TrackingService : Service() {
         }
 
         _currentLocation.value = lastRecordedPoint
+        lastRawLocationAtMs = points.lastOrNull { !it.isInterpolated }?.timestamp?.toEpochMilli()
+            ?: trip.startTime.toEpochMilli()
+        lastEstimatedLocationAtMs = lastRecordedPoint
+            ?.takeIf { it.isInterpolated }
+            ?.timestamp
+            ?.toEpochMilli()
+            ?: 0L
         Log.i(TAG, "Recovered trip $tripId with $pointCount recorded points")
     }
 
@@ -322,23 +337,8 @@ class TrackingService : Service() {
         val sensorWindow = sensorCollector.getRecentReadings(10_000)
         val mode = transportClassifier.classify(sensorWindow, smoothed.speed)
         val withMode = smoothed.copy(transportMode = mode)
-
-        lastRecordedPoint?.let { prev ->
-            totalDistanceMeters += haversineDistance(
-                prev.latitude, prev.longitude, withMode.latitude, withMode.longitude
-            )
-            if (prev.altitude != null && withMode.altitude != null) {
-                val elevDiff = withMode.altitude!! - prev.altitude!!
-                if (elevDiff > 0) totalAscentMeters += elevDiff
-                else totalDescentMeters += kotlin.math.abs(elevDiff)
-            }
-        }
-        withMode.speed?.let { if (it > maxSpeedMps) maxSpeedMps = it }
-
-        trackPointRepository.insert(withMode)
-        pointCount++
-        lastRecordedPoint = withMode
-        _currentLocation.value = withMode
+        recordPoint(withMode)
+        lastRawLocationAtMs = location.time
 
         val newInterval = adaptiveSampler.getRecommendedIntervalMs(
             currentSpeed = withMode.speed,
@@ -351,12 +351,64 @@ class TrackingService : Service() {
         currentSamplingIntervalMs = newInterval
     }
 
+    private suspend fun maybeEstimateLocation() {
+        if (currentTripId == null || _trackingState.value.isPaused) return
+
+        val lastPoint = lastRecordedPoint ?: return
+        val now = System.currentTimeMillis()
+        val lastFixAge = now - lastRawLocationAtMs
+        val timeSinceLastEstimate = now - lastEstimatedLocationAtMs
+
+        if (lastRawLocationAtMs == 0L) return
+        if (lastFixAge < STALE_LOCATION_THRESHOLD_MS) return
+        if (lastFixAge > MAX_ESTIMATION_WINDOW_MS) return
+        if (!sensorCollector.isMoving.value) return
+        if ((lastPoint.speed ?: 0f) < MIN_ESTIMATION_SPEED_MPS) return
+        if (timeSinceLastEstimate < currentSamplingIntervalMs) return
+
+        val estimated = deadReckoningEngine.estimatePosition(
+            lastKnown = lastPoint,
+            sensorReadings = sensorCollector.getRecentReadings(10_000),
+            elapsedMs = currentSamplingIntervalMs
+        )
+
+        if (gpsProcessor.isAnomaly(estimated, lastRecordedPoint)) return
+
+        recordPoint(estimated)
+        lastEstimatedLocationAtMs = now
+        Log.w(TAG, "Using estimated position after ${lastFixAge}ms without a fresh GPS update")
+    }
+
+    private suspend fun recordPoint(point: TrackPoint) {
+        lastRecordedPoint?.let { prev ->
+            totalDistanceMeters += haversineDistance(
+                prev.latitude, prev.longitude, point.latitude, point.longitude
+            )
+            val previousAltitude = prev.altitude
+            val currentAltitude = point.altitude
+            if (previousAltitude != null && currentAltitude != null) {
+                val elevDiff = currentAltitude - previousAltitude
+                if (elevDiff > 0) totalAscentMeters += elevDiff
+                else totalDescentMeters += kotlin.math.abs(elevDiff)
+            }
+        }
+        point.speed?.let { if (it > maxSpeedMps) maxSpeedMps = it }
+
+        trackPointRepository.insert(point)
+        pointCount++
+        lastRecordedPoint = point
+        _currentLocation.value = point
+    }
+
     private fun updateState(isPaused: Boolean = _trackingState.value.isPaused) {
+        val now = System.currentTimeMillis()
         val elapsed = if (isPaused) {
             pauseStartMs - startTimeMs - totalPausedMs
         } else {
-            System.currentTimeMillis() - startTimeMs - totalPausedMs
+            now - startTimeMs - totalPausedMs
         }
+        val locationAgeMs = if (lastRawLocationAtMs > 0L) now - lastRawLocationAtMs else null
+        val isLocationStale = !isPaused && (locationAgeMs ?: 0L) >= STALE_LOCATION_THRESHOLD_MS
 
         val state = TrackingState(
             isTracking = true,
@@ -368,7 +420,10 @@ class TrackingService : Service() {
             pointsRecorded = pointCount,
             batteryPercent = batteryMonitor.getBatteryPercent(),
             currentMode = _currentLocation.value?.transportMode,
-            samplingIntervalMs = currentSamplingIntervalMs
+            samplingIntervalMs = currentSamplingIntervalMs,
+            isLocationStale = isLocationStale,
+            lastLocationAgeMs = locationAgeMs,
+            isUsingEstimatedLocation = _currentLocation.value?.isInterpolated == true
         )
         _trackingState.value = state
         notificationManager.updateNotification(state)
@@ -384,6 +439,9 @@ class TrackingService : Service() {
 
     companion object {
         private const val TAG = "TrackingService"
+        private const val STALE_LOCATION_THRESHOLD_MS = 15_000L
+        private const val MAX_ESTIMATION_WINDOW_MS = 60_000L
+        private const val MIN_ESTIMATION_SPEED_MPS = 0.8f
         const val ACTION_START = "com.traq.action.START"
         const val ACTION_PAUSE = "com.traq.action.PAUSE"
         const val ACTION_RESUME = "com.traq.action.RESUME"

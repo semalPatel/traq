@@ -37,7 +37,12 @@ class TrackingNotificationManager @Inject constructor(
         val elapsed = formatElapsed(state.elapsedMs)
         val speed = state.currentSpeedMps?.let { "%.0f km/h".format(it * 3.6f) } ?: "--"
         val mode = state.currentMode?.name?.lowercase()?.replaceFirstChar { it.uppercase() } ?: ""
-        val statusText = if (state.isPaused) "Paused" else "$distanceKm · $elapsed · $speed"
+        val statusText = when {
+            state.isPaused -> "Paused"
+            state.isLocationStale && state.isUsingEstimatedLocation -> "GPS weak · Estimating position"
+            state.isLocationStale -> "GPS signal weak · Waiting for update"
+            else -> "$distanceKm · $elapsed · $speed"
+        }
 
         val launchIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)
         val contentPendingIntent = launchIntent?.let {
