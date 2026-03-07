@@ -23,13 +23,20 @@ object TripMapper {
             maxSpeedMps = maxSpeedMps,
             totalAscentMeters = totalAscentMeters,
             totalDescentMeters = totalDescentMeters,
-            batteryUsedPercent = if (batteryEndPercent != null) batteryStartPercent - batteryEndPercent else null,
-            pointCount = pointCount
+            batteryUsedPercent = if (batteryEndPercent != null) {
+                (batteryStartPercent - batteryEndPercent).coerceAtLeast(0)
+            } else {
+                null
+            },
+            pointCount = pointCount,
+            batteryEndPercent = batteryEndPercent
         ),
         startLatitude = startLatitude,
         startLongitude = startLongitude,
         endLatitude = endLatitude,
-        endLongitude = endLongitude
+        endLongitude = endLongitude,
+        batteryStartPercent = batteryStartPercent,
+        batteryEndPercent = batteryEndPercent
     )
 
     fun Trip.toEntity(): TripEntity = TripEntity(
@@ -50,8 +57,8 @@ object TripMapper {
         startLongitude = startLongitude,
         endLatitude = endLatitude,
         endLongitude = endLongitude,
-        batteryStartPercent = 100,
-        batteryEndPercent = metrics.batteryUsedPercent?.let { 100 - it },
+        batteryStartPercent = batteryStartPercent,
+        batteryEndPercent = batteryEndPercent ?: metrics.batteryEndPercent,
         pointCount = metrics.pointCount
     )
 }

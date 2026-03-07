@@ -77,6 +77,7 @@ class TrackingService : Service() {
     private var currentSamplingIntervalMs: Long = 3000L
     private var lastRawLocationAtMs: Long = 0L
     private var lastEstimatedLocationAtMs: Long = 0L
+    private var batteryStartPercent: Int = 0
 
     private val _trackingState = MutableStateFlow(TrackingState.IDLE)
     val trackingState: StateFlow<TrackingState> = _trackingState.asStateFlow()
@@ -116,6 +117,7 @@ class TrackingService : Service() {
     private fun startTracking(tripId: String?) {
         currentTripId = tripId ?: UUID.randomUUID().toString()
         startTimeMs = System.currentTimeMillis()
+        batteryStartPercent = batteryMonitor.getBatteryPercent()
         totalPausedMs = 0L
         totalDistanceMeters = 0.0
         totalAscentMeters = 0.0
@@ -210,6 +212,7 @@ class TrackingService : Service() {
         val points = trackPointRepository.getTrackPointsFlow(tripId).first()
 
         startTimeMs = trip.startTime.toEpochMilli()
+        batteryStartPercent = trip.batteryStartPercent
         totalPausedMs = 0L
         totalDistanceMeters = 0.0
         totalAscentMeters = 0.0
@@ -290,6 +293,9 @@ class TrackingService : Service() {
 
         serviceScope.launch(NonCancellable) {
             tripId?.let { id ->
+                val batteryEndPercent = batteryMonitor.getBatteryPercent()
+                val batteryUsedPercent = (batteryStartPercent - batteryEndPercent).coerceAtLeast(0)
+
                 tripRepository.completeTrip(
                     id, Instant.now(),
                     TripMetrics(
@@ -300,8 +306,9 @@ class TrackingService : Service() {
                         maxSpeedMps = maxSpeedMps.toDouble(),
                         totalAscentMeters = totalAscentMeters,
                         totalDescentMeters = totalDescentMeters,
-                        batteryUsedPercent = null,
-                        pointCount = pointCount
+                        batteryUsedPercent = batteryUsedPercent,
+                        pointCount = pointCount,
+                        batteryEndPercent = batteryEndPercent
                     )
                 )
             }

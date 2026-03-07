@@ -17,6 +17,7 @@ import com.traq.core.location.model.TrackingReadiness
 import com.traq.core.location.model.TrackingState
 import com.traq.core.location.provider.LocationProvider
 import com.traq.core.location.service.TrackingService
+import com.traq.core.location.util.BatteryMonitor
 import com.traq.core.permissions.PermissionManager
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
@@ -36,7 +37,8 @@ class TrackingControllerImpl @Inject constructor(
     @ApplicationContext private val context: Context,
     private val tripRepository: TripRepository,
     private val locationProvider: LocationProvider,
-    private val permissionManager: PermissionManager
+    private val permissionManager: PermissionManager,
+    private val batteryMonitor: BatteryMonitor
 ) : TrackingController {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
@@ -89,6 +91,7 @@ class TrackingControllerImpl @Inject constructor(
         }
 
         val tripId = UUID.randomUUID().toString()
+        val batteryStartPercent = batteryMonitor.getBatteryPercent()
         scope.launch {
             tripRepository.createTrip(
                 Trip(
@@ -102,7 +105,8 @@ class TrackingControllerImpl @Inject constructor(
                     startLatitude = 0.0,
                     startLongitude = 0.0,
                     endLatitude = null,
-                    endLongitude = null
+                    endLongitude = null,
+                    batteryStartPercent = batteryStartPercent
                 )
             )
         }

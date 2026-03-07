@@ -9,5 +9,6 @@ data class TripMetrics(
     val totalAscentMeters: Double,
     val totalDescentMeters: Double,
     val batteryUsedPercent: Int?,
-    val pointCount: Int
+    val pointCount: Int,
+    val batteryEndPercent: Int? = null
 )

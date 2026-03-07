@@ -46,7 +46,7 @@ class TripRepositoryImpl @Inject constructor(
                     maxSpeedMps = metrics.maxSpeedMps,
                     totalAscentMeters = metrics.totalAscentMeters,
                     totalDescentMeters = metrics.totalDescentMeters,
-                    batteryEndPercent = metrics.batteryUsedPercent?.let { entity.batteryStartPercent - it },
+                    batteryEndPercent = metrics.batteryEndPercent,
                     pointCount = metrics.pointCount
                 )
             )

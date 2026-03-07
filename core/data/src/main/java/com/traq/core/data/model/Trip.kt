@@ -15,5 +15,7 @@ data class Trip(
     val startLatitude: Double,
     val startLongitude: Double,
     val endLatitude: Double?,
-    val endLongitude: Double?
+    val endLongitude: Double?,
+    val batteryStartPercent: Int = 100,
+    val batteryEndPercent: Int? = null
 )
