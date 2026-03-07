@@ -13,5 +13,7 @@ data class TripDetailUiState(
     val mapBounds: LatLngBounds? = null,
     val showExportSheet: Boolean = false,
     val showRenameDialog: Boolean = false,
+    val showDeleteDialog: Boolean = false,
+    val tripDeleted: Boolean = false,
     val isLoading: Boolean = true
 )

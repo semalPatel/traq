@@ -72,7 +72,9 @@ class TripDetailViewModel @Inject constructor(
                 _uiState.update { old ->
                     newState.copy(
                         showExportSheet = old.showExportSheet,
-                        showRenameDialog = old.showRenameDialog
+                        showRenameDialog = old.showRenameDialog,
+                        showDeleteDialog = old.showDeleteDialog,
+                        tripDeleted = old.tripDeleted
                     )
                 }
             }
@@ -87,12 +89,32 @@ class TripDetailViewModel @Inject constructor(
         _uiState.update { it.copy(showRenameDialog = false) }
     }
 
+    fun showDeleteDialog() {
+        _uiState.update { it.copy(showDeleteDialog = true) }
+    }
+
+    fun dismissDeleteDialog() {
+        _uiState.update { it.copy(showDeleteDialog = false) }
+    }
+
     fun renameTrip(name: String) {
         viewModelScope.launch {
             if (name.isNotBlank()) {
                 tripRepository.renameTrip(tripId, name.trim())
             }
             _uiState.update { it.copy(showRenameDialog = false) }
+        }
+    }
+
+    fun deleteTrip() {
+        viewModelScope.launch {
+            tripRepository.deleteTrip(tripId)
+            _uiState.update {
+                it.copy(
+                    showDeleteDialog = false,
+                    tripDeleted = true
+                )
+            }
         }
     }
 

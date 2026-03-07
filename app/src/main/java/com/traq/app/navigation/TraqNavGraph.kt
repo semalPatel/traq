@@ -67,9 +67,12 @@ fun TraqNavGraph(
             arguments = listOf(navArgument("tripId") { type = NavType.StringType })
         ) {
             TripDetailScreen(
-                    onBack = { navController.popBackStack() },
-                    mapRenderer = mapRenderer
-                )
+                onBack = { navController.popBackStack() },
+                onTripDeleted = {
+                    navController.popBackStack()
+                },
+                mapRenderer = mapRenderer
+            )
         }
         composable(TraqRoute.Settings.route) {
             SettingsScreen(onBack = { navController.popBackStack() })

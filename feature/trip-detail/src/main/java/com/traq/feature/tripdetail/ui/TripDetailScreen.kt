@@ -17,6 +17,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
@@ -68,6 +69,7 @@ private val dateFormatter = DateTimeFormatter.ofPattern("EEE, MMM d yyyy · h:mm
 @Composable
 fun TripDetailScreen(
     onBack: () -> Unit,
+    onTripDeleted: () -> Unit,
     mapRenderer: MapRenderer? = null,
     viewModel: TripDetailViewModel = hiltViewModel()
 ) {
@@ -77,6 +79,12 @@ fun TripDetailScreen(
     LaunchedEffect(Unit) {
         viewModel.shareIntent.collect { intent ->
             context.startActivity(Intent.createChooser(intent, "Share Trip"))
+        }
+    }
+
+    LaunchedEffect(state.tripDeleted) {
+        if (state.tripDeleted) {
+            onTripDeleted()
         }
     }
 
@@ -90,6 +98,9 @@ fun TripDetailScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = { viewModel.showDeleteDialog() }) {
+                        Icon(Icons.Default.Delete, contentDescription = "Delete Trip")
+                    }
                     IconButton(onClick = { viewModel.toggleExportSheet() }) {
                         Icon(Icons.Default.Share, contentDescription = "Export")
                     }
@@ -317,6 +328,24 @@ fun TripDetailScreen(
             },
             dismissButton = {
                 TextButton(onClick = { viewModel.dismissRenameDialog() }) { Text("Cancel") }
+            }
+        )
+    }
+
+    if (state.showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissDeleteDialog() },
+            title = { Text("Delete Trip?") },
+            text = { Text("This will permanently remove the trip and all of its recorded points.") },
+            confirmButton = {
+                TextButton(onClick = { viewModel.deleteTrip() }) {
+                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.dismissDeleteDialog() }) {
+                    Text("Cancel")
+                }
             }
         )
     }
