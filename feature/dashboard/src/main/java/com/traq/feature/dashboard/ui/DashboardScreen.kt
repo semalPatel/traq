@@ -62,24 +62,75 @@ fun DashboardScreen(
     val state by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    var startTripIfReady: () -> Unit = {}
 
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
-    ) { _ -> }
+    ) { granted ->
+        if (Build.VERSION.SDK_INT < 33 || granted) {
+            startTripIfReady()
+        } else {
+            scope.launch {
+                snackbarHostState.showSnackbar("Notification permission is required for reliable foreground tracking")
+            }
+        }
+    }
+
+    val bgLocationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (Build.VERSION.SDK_INT < 29 || granted) {
+            startTripIfReady()
+        } else {
+            scope.launch {
+                snackbarHostState.showSnackbar("Background location is required so tracking keeps working with the screen off")
+            }
+        }
+    }
 
     val locationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
         val fineGranted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true
         if (fineGranted) {
-            if (Build.VERSION.SDK_INT >= 33) {
-                notificationPermissionLauncher.launch("android.permission.POST_NOTIFICATIONS")
-            }
-            val tripId = viewModel.startNewTrip()
-            onStartTrip(tripId)
+            startTripIfReady()
         } else {
             scope.launch {
                 snackbarHostState.showSnackbar("Location permission is required to track trips")
+            }
+        }
+    }
+
+    startTripIfReady = {
+        val readiness = viewModel.getTrackingReadiness()
+        when {
+            !readiness.hasForegroundLocation -> {
+                locationPermissionLauncher.launch(
+                    arrayOf(
+                        Manifest.permission.ACCESS_FINE_LOCATION,
+                        Manifest.permission.ACCESS_COARSE_LOCATION
+                    )
+                )
+            }
+
+            !readiness.hasBackgroundLocation && Build.VERSION.SDK_INT >= 29 -> {
+                bgLocationPermissionLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+            }
+
+            !readiness.hasNotifications && Build.VERSION.SDK_INT >= 33 -> {
+                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+
+            else -> {
+                val tripId = viewModel.startNewTrip()
+                onStartTrip(tripId)
+                if (!readiness.isBatteryOptimizationDisabled) {
+                    scope.launch {
+                        snackbarHostState.showSnackbar(
+                            "Battery optimization is still enabled. Tracking may stop in the background."
+                        )
+                    }
+                }
             }
         }
     }
@@ -105,19 +156,8 @@ fun DashboardScreen(
                 onClick = {
                     if (hasActiveTrip) {
                         state.activeTripState?.tripId?.let { onStartTrip(it) }
-                    } else if (viewModel.hasLocationPermission()) {
-                        if (Build.VERSION.SDK_INT >= 33) {
-                            notificationPermissionLauncher.launch("android.permission.POST_NOTIFICATIONS")
-                        }
-                        val tripId = viewModel.startNewTrip()
-                        onStartTrip(tripId)
                     } else {
-                        locationPermissionLauncher.launch(
-                            arrayOf(
-                                Manifest.permission.ACCESS_FINE_LOCATION,
-                                Manifest.permission.ACCESS_COARSE_LOCATION
-                            )
-                        )
+                        startTripIfReady()
                     }
                 },
                 containerColor = MaterialTheme.colorScheme.primary

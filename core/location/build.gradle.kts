@@ -27,6 +27,7 @@ dependencies {
     implementation(project(":core:common"))
     implementation(project(":core:data"))
     implementation(project(":core:ai"))
+    implementation(project(":core:permissions"))
     implementation(project(":core:sensors"))
 
     implementation(libs.play.services.location)

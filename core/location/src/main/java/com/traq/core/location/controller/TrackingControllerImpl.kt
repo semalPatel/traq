@@ -5,7 +5,6 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
-import android.content.pm.PackageManager
 import android.location.Location
 import android.os.IBinder
 import androidx.core.content.ContextCompat
@@ -14,10 +13,11 @@ import com.traq.core.data.model.TrackPoint
 import com.traq.core.data.model.Trip
 import com.traq.core.data.model.TripMetrics
 import com.traq.core.data.repository.TripRepository
+import com.traq.core.location.model.TrackingReadiness
 import com.traq.core.location.model.TrackingState
 import com.traq.core.location.provider.LocationProvider
 import com.traq.core.location.service.TrackingService
-import com.traq.core.location.util.BatteryMonitor
+import com.traq.core.permissions.PermissionManager
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -35,8 +35,8 @@ import javax.inject.Singleton
 class TrackingControllerImpl @Inject constructor(
     @ApplicationContext private val context: Context,
     private val tripRepository: TripRepository,
-    private val batteryMonitor: BatteryMonitor,
-    private val locationProvider: LocationProvider
+    private val locationProvider: LocationProvider,
+    private val permissionManager: PermissionManager
 ) : TrackingController {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
@@ -69,14 +69,23 @@ class TrackingControllerImpl @Inject constructor(
     }
 
     override fun hasRequiredPermissions(): Boolean {
-        return ContextCompat.checkSelfPermission(
-            context, Manifest.permission.ACCESS_FINE_LOCATION
-        ) == PackageManager.PERMISSION_GRANTED
+        return getTrackingReadiness().canStartTrip
+    }
+
+    override fun getTrackingReadiness(): TrackingReadiness {
+        return TrackingReadiness(
+            hasForegroundLocation = permissionManager.hasLocationPermission(),
+            hasBackgroundLocation = permissionManager.hasBackgroundLocationPermission(),
+            hasNotifications = permissionManager.hasNotificationPermission(),
+            isBatteryOptimizationDisabled = permissionManager.isBatteryOptimizationDisabled()
+        )
     }
 
     override fun startTrip(): String {
-        if (!hasRequiredPermissions()) {
-            throw SecurityException("Location permission not granted. Request permission before starting a trip.")
+        val readiness = getTrackingReadiness()
+        if (!readiness.canStartTrip) {
+            val missing = readiness.blockingRequirements.joinToString { requirement -> requirement.displayName }
+            throw SecurityException("Tracking is not ready. Missing: $missing.")
         }
 
         val tripId = UUID.randomUUID().toString()

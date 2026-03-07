@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.traq.core.common.model.TripStatus
 import com.traq.core.data.repository.TripRepository
 import com.traq.core.location.controller.TrackingController
+import com.traq.core.location.model.TrackingReadiness
 import com.traq.feature.dashboard.model.DashboardUiState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -44,7 +45,7 @@ class DashboardViewModel @Inject constructor(
         }
     }
 
-    fun hasLocationPermission(): Boolean = trackingController.hasRequiredPermissions()
+    fun getTrackingReadiness(): TrackingReadiness = trackingController.getTrackingReadiness()
 
     fun startNewTrip(): String = trackingController.startTrip()
 }
