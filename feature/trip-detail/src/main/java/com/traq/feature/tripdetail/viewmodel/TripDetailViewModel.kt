@@ -1,6 +1,7 @@
 package com.traq.feature.tripdetail.viewmodel
 
 import android.content.Intent
+import androidx.compose.ui.graphics.toArgb
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -49,7 +50,7 @@ class TripDetailViewModel @Inject constructor(
             ) { trip, points ->
                 val latLngs = points.map { LatLng(it.latitude, it.longitude) }
                 val polyline = if (latLngs.size >= 2) {
-                    val color = trip?.dominantMode?.let { ColorUtils.transportModeColor(it).hashCode() }
+                    val color = trip?.dominantMode?.let { ColorUtils.transportModeColor(it).toArgb() }
                         ?: 0xFF00BFA5.toInt()
                     listOf(RoutePolyline(points = latLngs, colorInt = color, widthDp = 5f))
                 } else emptyList()
